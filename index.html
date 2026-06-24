@@ -51,6 +51,12 @@
     <!-- Supabase JS Client SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+    <!-- ComSoc modular script components (Fase 2) -->
+    <script src="js/supabase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/ui-components.js"></script>
+
     <style>
         :root {
             --color-theme-primary: #002B5B;
@@ -110,6 +116,11 @@
 </head>
 <body class="bg-surface-light text-slate-800 font-sans antialiased min-h-screen flex flex-col pb-24">
 
+    <!-- AUTH OVERLAY (Controle de Acesso) -->
+    <div id="authOverlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+        <!-- Injetado via JS -->
+    </div>
+
     <!-- HEADER -->
     <header class="bg-naval-blue text-white shadow-md sticky top-0 z-[100] border-b border-naval-light/55">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -142,6 +153,12 @@
                         <button onclick="openUnitSettingsModal()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 transition-colors">
                             <i data-lucide="palette" class="w-4 h-4 text-indigo-600"></i> Identidade do ComSoc
                         </button>
+                        <button id="btnAdminMembers" onclick="openMembersManagerModal()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 transition-colors border-t border-slate-100">
+                            <i data-lucide="users" class="w-4 h-4 text-blue-600"></i> Operadores do ComSoc
+                        </button>
+                        <button onclick="openAuditLogsModal()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 transition-colors border-t border-slate-100">
+                            <i data-lucide="file-clock" class="w-4 h-4 text-amber-500"></i> Logs / Auditoria
+                        </button>
                         <button onclick="openCloudModal()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2 transition-colors border-t border-slate-100">
                             <i data-lucide="cloud-lightning" class="w-4 h-4 text-sky-600"></i> Banco de Dados (Nuvem)
                         </button>
@@ -156,6 +173,9 @@
                         </button>
                         <button onclick="confirmReset()" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors border-t border-slate-100">
                             <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Restaurar Originais
+                        </button>
+                        <button onclick="signOut()" class="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 font-bold flex items-center gap-2 transition-colors border-t border-slate-200 bg-red-50/20">
+                            <i data-lucide="log-out" class="w-4 h-4"></i> Sair da Conta
                         </button>
                     </div>
                 </div>
@@ -341,11 +361,19 @@
             
             <div class="flex flex-col lg:flex-row gap-4 w-full xl:w-3/4">
                 <!-- Search bar -->
-                <div class="relative w-full lg:w-4/12">
+                <div class="relative w-full lg:w-3/12">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <i data-lucide="search" class="text-slate-400 w-5 h-5"></i>
                     </div>
-                    <input type="text" id="searchInput" class="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-lg leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-naval-accent/50 focus:border-naval-blue focus:bg-white text-sm transition-all duration-150" placeholder="Buscar por nome, cargo ou contato...">
+                    <input type="text" id="searchInput" class="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-lg leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-naval-accent/50 focus:border-naval-blue focus:bg-white text-sm transition-all duration-150" placeholder="Buscar por nome, cargo...">
+                </div>
+
+                <!-- Filtro de Escopo: Órgão Atual vs Região -->
+                <div class="relative w-full lg:w-3/12">
+                    <select id="orgScopeSelect" onchange="alterarEscopoVisualizacao(this.value)" class="block w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-naval-accent/50 focus:border-naval-blue focus:bg-white transition-all font-outfit font-bold text-slate-700">
+                        <option value="meu">Meu Órgão (Foco)</option>
+                        <option value="regional" selected>Regional (Compartilhados)</option>
+                    </select>
                 </div>
                 
                 <!-- Category Buttons Filters -->
@@ -566,6 +594,11 @@
                                 <textarea id="agenda-event-description" rows="3" placeholder="Insira detalhes complementares do evento..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-naval-accent/50 focus:border-naval-blue focus:bg-white transition-all custom-scrollbar"></textarea>
                             </div>
 
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" id="agenda-event-share" checked class="rounded border-slate-300 text-naval-blue focus:ring-naval-blue w-4 h-4 cursor-pointer">
+                                <label for="agenda-event-share" class="text-xs font-bold text-slate-600 cursor-pointer">Compartilhar na Agenda Regional</label>
+                            </div>
+
                             <button type="submit" class="w-full py-2.5 bg-naval-blue hover:bg-naval-light text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm min-h-[44px]">
                                 <i data-lucide="plus-circle" class="w-4 h-4 text-naval-accent"></i>
                                 Criar e Ativar Evento
@@ -708,6 +741,15 @@
                     <textarea id="form-observation" rows="2" placeholder="Informações gerais sobre o contato (ex: atende pelo assessor, priorizar whatsapp...)" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-naval-accent/50 focus:border-naval-blue focus:bg-white transition-all custom-scrollbar"></textarea>
                 </div>
 
+                <!-- Checkbox de Compartilhamento Regional -->
+                <div class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200/50">
+                    <input type="checkbox" id="form-compartilhar" checked class="rounded border-slate-300 text-naval-blue focus:ring-naval-blue w-4 h-4 cursor-pointer">
+                    <div>
+                        <label for="form-compartilhar" class="block text-xs font-bold text-slate-700 cursor-pointer">Compartilhar com a Região</label>
+                        <p class="text-[9px] text-slate-400 font-medium">Se marcado, outros ComSocs da região poderão visualizar os dados deste contato.</p>
+                    </div>
+                </div>
+
                 <p class="text-[10px] text-slate-400 italic mt-2">* Campos obrigatórios. A ordenação é mantida pelo número do registro.</p>
 
                 <!-- Footer buttons -->
@@ -758,6 +800,10 @@
                         </div>
                         <div class="sm:col-span-3">
                             <textarea id="newEventDescription" rows="2" placeholder="Descrição do evento..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-xs bg-white focus:outline-none focus:ring-2 focus:ring-naval-accent/50 focus:border-naval-blue transition-all custom-scrollbar"></textarea>
+                        </div>
+                        <div class="sm:col-span-3 flex items-center gap-2">
+                            <input type="checkbox" id="newEventShare" checked class="rounded border-slate-300 text-naval-blue focus:ring-naval-blue w-4 h-4 cursor-pointer">
+                            <label for="newEventShare" class="text-xs font-bold text-slate-600 cursor-pointer">Compartilhar na Agenda Regional</label>
                         </div>
                         <div class="sm:col-span-3 flex justify-end">
                             <button type="submit" class="flex items-center gap-1 px-4 py-2 bg-naval-blue hover:bg-naval-light text-white text-xs font-bold rounded-lg transition-colors shadow-sm min-h-[44px]">
@@ -1217,6 +1263,10 @@
                     <label for="edit-event-description" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Descrição / Anotações</label>
                     <textarea id="edit-event-description" rows="3" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-base sm:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-naval-accent/50 focus:border-naval-blue transition-all custom-scrollbar"></textarea>
                 </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="edit-event-share" checked class="rounded border-slate-300 text-naval-blue focus:ring-naval-blue w-4 h-4 cursor-pointer">
+                    <label for="edit-event-share" class="text-xs font-bold text-slate-600 cursor-pointer">Compartilhar na Agenda Regional</label>
+                </div>
                 <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 font-sans">
                     <button type="button" onclick="closeEditEventModal()" class="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors">
                         Cancelar
@@ -1448,10 +1498,10 @@
         };
 
         // Cloud variables
-        let dbMode = 'local';
-        let dbConfig = {};
+        let dbMode = 'supabase';
+        let dbConfig = DEFAULT_DB_CONFIG;
         let firebaseDb = null;
-        let supabaseClient = null;
+        let currentOrgScope = 'regional'; // meu ou regional
 
         // UI elements
         const gridContainer = document.getElementById('contactsGrid');
@@ -1877,19 +1927,20 @@
 
         function calculateMetrics() {
             // Categories
-            const total = contactsData.length;
+            const contatosFiltro = contactsData.filter(c => currentOrgScope === 'meu' && typeof currentOrg !== 'undefined' && currentOrg ? c.org_id === currentOrg.id : true);
+            const total = contatosFiltro.length;
             metricTotal.textContent = total;
-            metricMil.textContent = contactsData.filter(c => c.category === 'militar').length;
-            metricGov.textContent = contactsData.filter(c => c.category === 'civil').length;
-            metricJus.textContent = contactsData.filter(c => c.category === 'justica').length;
-            metricSoamar.textContent = contactsData.filter(c => c.category === 'soamar').length;
+            metricMil.textContent = contatosFiltro.filter(c => c.category === 'militar').length;
+            metricGov.textContent = contatosFiltro.filter(c => c.category === 'civil').length;
+            metricJus.textContent = contatosFiltro.filter(c => c.category === 'justica').length;
+            metricSoamar.textContent = contatosFiltro.filter(c => c.category === 'soamar').length;
 
             // RSVP Event
-            const pendente = contactsData.filter(c => !c.rsvpByEvent || c.rsvpByEvent[activeEventId] === 'pendente' || !c.rsvpByEvent[activeEventId]).length;
-            const enviadoEstrito = contactsData.filter(c => c.rsvpByEvent && c.rsvpByEvent[activeEventId] === 'enviado').length;
-            const enviadoAcumulado = contactsData.filter(c => c.rsvpByEvent && ['enviado', 'confirmado', 'recusado'].includes(c.rsvpByEvent[activeEventId])).length;
-            const confirmado = contactsData.filter(c => c.rsvpByEvent && c.rsvpByEvent[activeEventId] === 'confirmado').length;
-            const recusado = contactsData.filter(c => c.rsvpByEvent && c.rsvpByEvent[activeEventId] === 'recusado').length;
+            const pendente = contatosFiltro.filter(c => !c.rsvpByEvent || c.rsvpByEvent[activeEventId] === 'pendente' || !c.rsvpByEvent[activeEventId]).length;
+            const enviadoEstrito = contatosFiltro.filter(c => c.rsvpByEvent && c.rsvpByEvent[activeEventId] === 'enviado').length;
+            const enviadoAcumulado = contatosFiltro.filter(c => c.rsvpByEvent && ['enviado', 'confirmado', 'recusado'].includes(c.rsvpByEvent[activeEventId])).length;
+            const confirmado = contatosFiltro.filter(c => c.rsvpByEvent && c.rsvpByEvent[activeEventId] === 'confirmado').length;
+            const recusado = contatosFiltro.filter(c => c.rsvpByEvent && c.rsvpByEvent[activeEventId] === 'recusado').length;
 
             metricRsvpPendente.textContent = pendente;
             metricRsvpEnviado.textContent = enviadoAcumulado;
@@ -2026,6 +2077,11 @@
         // Filter and Search Engine
         function getFilteredContacts() {
             return contactsData.filter(contact => {
+                // Filtro de Escopo de Organização (Foco do Órgão vs Regional)
+                if (currentOrgScope === 'meu' && typeof currentOrg !== 'undefined' && currentOrg) {
+                    if (contact.org_id !== currentOrg.id) return false;
+                }
+
                 let matchCategory = false;
                 if (currentFilter === 'all') {
                     matchCategory = true;
@@ -2055,6 +2111,24 @@
                                     (contact.notesByEvent && contact.notesByEvent[activeEventId] && contact.notesByEvent[activeEventId].toLowerCase().includes(query));
                 return matchCategory && matchRsvp && matchSearch;
             });
+        }
+
+        // Filtrar eventos com base no escopo selecionado
+        function getFilteredEvents() {
+            return eventsData.filter(event => {
+                if (currentOrgScope === 'meu' && typeof currentOrg !== 'undefined' && currentOrg) {
+                    return event.org_id === currentOrg.id;
+                }
+                return true;
+            });
+        }
+
+        function alterarEscopoVisualizacao(scope) {
+            currentOrgScope = scope;
+            renderLayout();
+            renderEventsList();
+            renderComSocCalendar();
+            if (typeof renderAgendaTimeline === 'function') renderAgendaTimeline();
         }
 
         // Render controller
@@ -2515,37 +2589,43 @@
             const index = contactsData.findIndex(c => c.no === no);
             if (index === -1) return;
 
-            const name = contactsData[index].name;
+            const contact = contactsData[index];
+            const name = contact.name;
             
-            if (!contactsData[index].rsvpByEvent) {
-                contactsData[index].rsvpByEvent = {};
+            if (!contact.rsvpByEvent) {
+                contact.rsvpByEvent = {};
             }
-            contactsData[index].rsvpByEvent[activeEventId] = status;
-            contactsData[index].rsvp = status; // compatibilidade secundária
+            contact.rsvpByEvent[activeEventId] = status;
+            contact.rsvp = status; // compatibilidade secundária
 
-            let cloudSaved = true;
-            if (dbMode === 'firebase' && firebaseDb) {
-                try {
-                    await firebaseDb.collection("contatos_v5").doc(no.toString()).set(contactsData[index]);
-                } catch(e) {
-                    cloudSaved = false;
+            try {
+                if (typeof salvarContatoNuvem === 'function') {
+                    await salvarContatoNuvem(contact, true);
                 }
-            } else if (dbMode === 'supabase' && supabaseClient) {
-                try {
-                    await supabaseClient.from('contatos_v5').upsert(contactsData[index]);
-                } catch(e) {
-                    cloudSaved = false;
+
+                if (typeof carregarConvitesEvento === 'function' && typeof salvarConviteEvento === 'function') {
+                    const convites = await carregarConvitesEvento(activeEventId);
+                    const conviteExistente = convites.find(c => c.contato_id === contact.id);
+                    
+                    const conviteObj = {
+                        evento_id: activeEventId,
+                        contato_id: contact.id,
+                        status: status,
+                        observacao: conviteExistente ? conviteExistente.observacao : ''
+                    };
+                    if (conviteExistente) {
+                        conviteObj.id = conviteExistente.id;
+                    }
+                    await salvarConviteEvento(conviteObj);
                 }
-            }
 
-            saveLocalCache();
-            calculateMetrics();
-            renderLayout();
-
-            if (cloudSaved) {
+                saveLocalCache();
+                calculateMetrics();
+                renderLayout();
                 showToast(`RSVP de "${name}" atualizado para ${status}.`);
-            } else {
-                showToast(`RSVP atualizado localmente. Sem sincronia de nuvem.`, true);
+            } catch (e) {
+                console.error("Erro ao atualizar RSVP:", e);
+                showToast(`Erro ao atualizar RSVP na nuvem.`, true);
             }
         }
 
@@ -2688,6 +2768,7 @@
             const email = document.getElementById('form-email').value.trim();
             const rsvp = document.getElementById('form-rsvp').value;
             const observation = document.getElementById('form-observation').value.trim();
+            const compartilhar = document.getElementById('form-compartilhar').checked;
 
             if (!name || !role) {
                 showToast("Por favor, preencha todos os campos obrigatórios (*).", true);
@@ -2701,10 +2782,11 @@
                 targetNo = parseInt(noVal, 10);
                 isEdit = true;
             } else {
-                targetNo = contactsData.length > 0 ? Math.max(...contactsData.map(c => c.no)) + 1 : 1;
+                const meusContatos = contactsData.filter(c => c.org_id === currentOrg.id);
+                targetNo = meusContatos.length > 0 ? Math.max(...meusContatos.map(c => c.no)) + 1 : 1;
             }
 
-            let existingContact = contactsData.find(c => c.no === targetNo) || {};
+            let existingContact = contactsData.find(c => c.no === targetNo && c.org_id === currentOrg.id) || {};
             
             const rsvpByEvent = existingContact.rsvpByEvent || {};
             rsvpByEvent[activeEventId] = rsvp;
@@ -2723,50 +2805,42 @@
                 militaryForce: militaryForce,
                 phone,
                 email,
-                rsvp, // compatibilidade legada
+                rsvp,
                 observation,
                 rsvpByEvent,
-                notesByEvent
+                notesByEvent,
+                compartilhar
             };
 
-            // 1. Cloud Save
-            let cloudSaved = true;
-
-            if (dbMode === 'firebase' && firebaseDb) {
-                try {
-                    await firebaseDb.collection("contatos_v5").doc(targetNo.toString()).set(contactObj);
-                } catch(err) {
-                    console.error("Erro ao salvar no Firestore", err);
-                    cloudSaved = false;
-                }
-            } else if (dbMode === 'supabase' && supabaseClient) {
-                try {
-                    const { error } = await supabaseClient.from('contatos_v5').upsert(contactObj);
-                    if (error) throw error;
-                } catch(err) {
-                    console.error("Erro ao salvar no Supabase", err);
-                    cloudSaved = false;
-                }
+            if (existingContact.id) {
+                contactObj.id = existingContact.id;
             }
 
-            // 2. Local Save
-            if (isEdit) {
-                const idx = contactsData.findIndex(c => c.no === targetNo);
-                if (idx !== -1) contactsData[idx] = contactObj;
-            } else {
-                contactsData.push(contactObj);
-            }
+            showToast("Salvando na nuvem...");
+            try {
+                if (typeof salvarContatoNuvem === 'function') {
+                    await salvarContatoNuvem(contactObj, isEdit);
+                }
 
-            sortContacts();
-            saveLocalCache();
-            calculateMetrics();
-            renderLayout();
-            closeContactModal();
-
-            if (cloudSaved) {
+                const contatosCarregados = await carregarContatosNuvem();
+                contactsData = contatosCarregados.map(c => {
+                    c.no = Number(c.no);
+                    if (!c.rsvpByEvent) c.rsvpByEvent = {};
+                    if (!c.notesByEvent) c.notesByEvent = {};
+                    if (c.rsvpByEvent[activeEventId] === undefined) c.rsvpByEvent[activeEventId] = 'pendente';
+                    if (c.notesByEvent[activeEventId] === undefined) c.notesByEvent[activeEventId] = '';
+                    return c;
+                });
+                
+                sortContacts();
+                saveLocalCache();
+                calculateMetrics();
+                renderLayout();
+                closeContactModal();
                 showToast(`Autoridade "${name}" salva com sucesso!`);
-            } else {
-                showToast(`Salvo localmente. Erro ao sincronizar na Nuvem.`, true);
+            } catch(err) {
+                console.error("Erro ao salvar contato:", err);
+                showToast(`Erro ao salvar na nuvem: ${err.message || err}`, true);
             }
         }
 
@@ -3684,49 +3758,51 @@
             const time = document.getElementById('newEventTime').value || '';
             const location = document.getElementById('newEventLocation').value.trim() || '';
             const description = document.getElementById('newEventDescription').value.trim() || '';
+            const compartilhar = document.getElementById('newEventShare').checked;
             
             if (!name || !date) return;
 
             const id = 'evt-' + Date.now();
-            const newEvent = { id, name, date, time, location, description };
+            const newEvent = { id, name, date, time, location, description, compartilhar };
             
-            eventsData.push(newEvent);
-            localStorage.setItem('cft_events_v5', JSON.stringify(eventsData));
+            showToast("Criando evento...");
+            try {
+                if (typeof salvarEventoNuvem === 'function') {
+                    await salvarEventoNuvem(newEvent, false);
+                }
+                
+                const eventosCarregados = await carregarEventosNuvem();
+                eventsData = eventosCarregados;
+                localStorage.setItem('cft_events_v5', JSON.stringify(eventsData));
 
-            if (dbMode === 'firebase' && firebaseDb) {
-                try {
-                    await firebaseDb.collection("eventos_v5").doc(id).set(newEvent);
-                } catch(err) { console.error("Erro ao salvar evento no Firebase", err); }
-            } else if (dbMode === 'supabase' && supabaseClient) {
-                try {
-                    await supabaseClient.from('eventos_v5').upsert(newEvent);
-                } catch(err) { console.error("Erro ao salvar evento no Supabase", err); }
+                activeEventId = id;
+                localStorage.setItem('cft_active_event_id_v5', id);
+
+                contactsData.forEach(c => {
+                    if (!c.rsvpByEvent) c.rsvpByEvent = {};
+                    if (!c.notesByEvent) c.notesByEvent = {};
+                    c.rsvpByEvent[id] = 'pendente';
+                    c.notesByEvent[id] = '';
+                });
+                saveLocalCache();
+
+                document.getElementById('newEventName').value = '';
+                document.getElementById('newEventDate').value = '';
+                document.getElementById('newEventTime').value = '';
+                document.getElementById('newEventLocation').value = '';
+                document.getElementById('newEventDescription').value = '';
+
+                showToast(`Evento "${name}" criado e ativado!`);
+                updateActiveEventBanner();
+                calculateMetrics();
+                renderLayout();
+                renderEventsList();
+                renderComSocCalendar();
+                if (typeof renderAgendaTimeline === 'function') renderAgendaTimeline();
+            } catch (err) {
+                console.error("Erro ao criar evento:", err);
+                showToast("Erro ao criar evento na nuvem.", true);
             }
-
-            activeEventId = id;
-            localStorage.setItem('cft_active_event_id_v5', id);
-
-            // Inicializar RSVP/Notas para todos os contatos no novo evento
-            contactsData.forEach(c => {
-                if (!c.rsvpByEvent) c.rsvpByEvent = {};
-                if (!c.notesByEvent) c.notesByEvent = {};
-                c.rsvpByEvent[id] = 'pendente';
-                c.notesByEvent[id] = '';
-            });
-            saveLocalCache();
-
-            document.getElementById('newEventName').value = '';
-            document.getElementById('newEventDate').value = '';
-            document.getElementById('newEventTime').value = '';
-            document.getElementById('newEventLocation').value = '';
-            document.getElementById('newEventDescription').value = '';
-
-            showToast(`Evento "${name}" criado e ativado!`);
-            updateActiveEventBanner();
-            calculateMetrics();
-            renderLayout();
-            renderEventsList();
-            if (typeof renderAgendaTimeline === 'function') renderAgendaTimeline();
         }
 
         async function selectActiveEvent(id) {
@@ -3760,43 +3836,51 @@
                 return;
             }
 
-            const eventName = eventsData.find(e => e.id === id)?.name || '';
+            const event = eventsData.find(e => e.id === id);
+            if (!event) return;
+            
+            if (event.org_id !== currentOrg.id) {
+                showToast("Você só pode excluir eventos criados pelo seu próprio ComSoc.", true);
+                return;
+            }
 
             showConfirm(
                 "Excluir Evento?",
-                `Isso excluirá permanentemente o evento "${eventName}" e todo o seu histórico de RSVP das autoridades.`,
+                `Isso excluirá permanentemente o evento "${event.name}" e todo o seu histórico de RSVP das autoridades.`,
                 'danger',
                 async () => {
-                    eventsData = eventsData.filter(e => e.id !== id);
-                    localStorage.setItem('cft_events_v5', JSON.stringify(eventsData));
+                    showToast("Excluindo evento...");
+                    try {
+                        if (typeof excluirEventoNuvem === 'function') {
+                            await excluirEventoNuvem(id, event.name);
+                        }
+                        
+                        const eventosCarregados = await carregarEventosNuvem();
+                        eventsData = eventosCarregados;
+                        localStorage.setItem('cft_events_v5', JSON.stringify(eventsData));
 
-                    if (dbMode === 'firebase' && firebaseDb) {
-                        try {
-                            await firebaseDb.collection("eventos_v5").doc(id).delete();
-                        } catch(err) { console.error("Erro ao deletar no Firebase", err); }
-                    } else if (dbMode === 'supabase' && supabaseClient) {
-                        try {
-                            await supabaseClient.from('eventos_v5').delete().eq('id', id);
-                        } catch(err) { console.error("Erro ao deletar no Supabase", err); }
+                        if (activeEventId === id) {
+                            activeEventId = eventsData.length > 0 ? eventsData[0].id : 'evt-default';
+                            localStorage.setItem('cft_active_event_id_v5', activeEventId);
+                        }
+
+                        contactsData.forEach(c => {
+                            if (c.rsvpByEvent) delete c.rsvpByEvent[id];
+                            if (c.notesByEvent) delete c.notesByEvent[id];
+                        });
+                        saveLocalCache();
+
+                        showToast("Evento excluído.");
+                        updateActiveEventBanner();
+                        calculateMetrics();
+                        renderLayout();
+                        renderEventsList();
+                        renderComSocCalendar();
+                        if (typeof renderAgendaTimeline === 'function') renderAgendaTimeline();
+                    } catch (err) {
+                        console.error("Erro ao excluir evento:", err);
+                        showToast("Erro ao excluir evento do banco de dados.", true);
                     }
-
-                    if (activeEventId === id) {
-                        activeEventId = 'evt-default';
-                        localStorage.setItem('cft_active_event_id_v5', activeEventId);
-                    }
-
-                    contactsData.forEach(c => {
-                        if (c.rsvpByEvent) delete c.rsvpByEvent[id];
-                        if (c.notesByEvent) delete c.notesByEvent[id];
-                    });
-                    saveLocalCache();
-
-                    showToast("Evento excluído.");
-                    updateActiveEventBanner();
-                    calculateMetrics();
-                    renderLayout();
-                    renderEventsList();
-                    if (typeof renderAgendaTimeline === 'function') renderAgendaTimeline();
                 }
             );
         }
@@ -3819,10 +3903,13 @@
             const container = document.getElementById('eventsListContainer');
             if (!container) return;
 
-            container.innerHTML = eventsData.map(evt => {
+            const filteredEvents = getFilteredEvents();
+            const contatosFiltro = contactsData.filter(c => currentOrgScope === 'meu' && typeof currentOrg !== 'undefined' && currentOrg ? c.org_id === currentOrg.id : true);
+
+            container.innerHTML = filteredEvents.map(evt => {
                 const isActive = evt.id === activeEventId;
-                const confirmados = contactsData.filter(c => c.rsvpByEvent && c.rsvpByEvent[evt.id] === 'confirmado').length;
-                const total = contactsData.length;
+                const confirmados = contatosFiltro.filter(c => c.rsvpByEvent && c.rsvpByEvent[evt.id] === 'confirmado').length;
+                const total = contatosFiltro.length;
 
                 let dateStr = '--/--/----';
                 if (evt.date) {
@@ -3844,12 +3931,16 @@
                                 <span class="mx-1.5">•</span>
                                 <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-500"></i> ${confirmados}/${total} Confirmados
                             </p>
+                        <div class="flex items-center gap-1">
+                            <button onclick="openInvitationManagerModal('${evt.id}')" class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors" title="Gerenciar Convites">
+                                <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+                            </button>
+                            ${evt.id !== 'evt-default' ? `
+                            <button onclick="deleteEvent('${evt.id}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Excluir Evento">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                            ` : ''}
                         </div>
-                        ${evt.id !== 'evt-default' ? `
-                        <button onclick="deleteEvent('${evt.id}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Excluir Evento">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                        </button>
-                        ` : ''}
                     </div>
                 `;
             }).join('');
@@ -3860,25 +3951,39 @@
             const index = contactsData.findIndex(c => c.no === no);
             if (index === -1) return;
 
-            if (!contactsData[index].notesByEvent) {
-                contactsData[index].notesByEvent = {};
-            }
-            contactsData[index].notesByEvent[activeEventId] = val;
+            const contact = contactsData[index];
 
-            let cloudSaved = true;
-            if (dbMode === 'firebase' && firebaseDb) {
-                try {
-                    await firebaseDb.collection("contatos_v5").doc(no.toString()).set(contactsData[index]);
-                } catch(e) { cloudSaved = false; }
-            } else if (dbMode === 'supabase' && supabaseClient) {
-                try {
-                    await supabaseClient.from('contatos_v5').upsert(contactsData[index]);
-                } catch(e) { cloudSaved = false; }
+            if (!contact.notesByEvent) {
+                contact.notesByEvent = {};
             }
+            contact.notesByEvent[activeEventId] = val;
 
-            saveLocalCache();
-            if (!cloudSaved) {
-                showToast("Anotação salva localmente (sem nuvem).", true);
+            try {
+                if (typeof salvarContatoNuvem === 'function') {
+                    await salvarContatoNuvem(contact, true);
+                }
+
+                if (typeof carregarConvitesEvento === 'function' && typeof salvarConviteEvento === 'function') {
+                    const convites = await carregarConvitesEvento(activeEventId);
+                    const conviteExistente = convites.find(c => c.contato_id === contact.id);
+                    
+                    const conviteObj = {
+                        evento_id: activeEventId,
+                        contato_id: contact.id,
+                        status: conviteExistente ? conviteExistente.status : 'pendente',
+                        observacao: val
+                    };
+                    if (conviteExistente) {
+                        conviteObj.id = conviteExistente.id;
+                    }
+                    await salvarConviteEvento(conviteObj);
+                }
+
+                saveLocalCache();
+                showToast("Anotação salva na nuvem!");
+            } catch(e) {
+                console.error("Erro ao salvar observação:", e);
+                showToast("Erro ao salvar anotação na nuvem.", true);
             }
         }
 
@@ -4144,21 +4249,18 @@
             unitConfig.theme = document.getElementById('unit-theme').value;
             unitConfig.logoBase64 = tempLogoBase64;
             
-            localStorage.setItem('cft_unit_config_v5', JSON.stringify(unitConfig));
-            
-            if (dbMode === 'firebase' && firebaseDb) {
-                try {
-                    await firebaseDb.collection("configuracao_unidade_v5").doc("cft_unit_config").set(unitConfig);
-                } catch(err) { console.error("Erro ao salvar config na nuvem", err); }
-            } else if (dbMode === 'supabase' && supabaseClient) {
-                try {
-                    await supabaseClient.from('configuracao_unidade_v5').upsert({ id: 'cft_unit_config', ...unitConfig });
-                } catch(err) { console.error("Erro ao salvar config no Supabase", err); }
+            showToast("Salvando configurações...");
+            try {
+                if (typeof salvarIdentidadeVisualNuvem === 'function') {
+                    await salvarIdentidadeVisualNuvem(unitConfig);
+                }
+                applyUnitSettings();
+                closeUnitSettingsModal();
+                showToast("Identidade visual atualizada na nuvem!");
+            } catch (err) {
+                console.error("Erro ao salvar config", err);
+                showToast("Erro ao salvar configurações na nuvem.", true);
             }
-            
-            applyUnitSettings();
-            closeUnitSettingsModal();
-            showToast("Identidade visual updated com sucesso!");
         }
 
         // --- FUNÇÕES DA TIMELINE / AGENDA DE EVENTOS ---
@@ -4188,7 +4290,8 @@
             const container = document.getElementById('agendaTimelineContainer');
             if (!container) return;
             
-            if (eventsData.length === 0) {
+            const filteredEvents = getFilteredEvents();
+            if (filteredEvents.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-12 bg-white rounded-xl border border-slate-200 text-slate-400">
                         <i data-lucide="calendar-range" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
@@ -4200,7 +4303,8 @@
                 return;
             }
             
-            const sortedEvents = [...eventsData].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const sortedEvents = [...filteredEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const contatosFiltro = contactsData.filter(c => currentOrgScope === 'meu' && typeof currentOrg !== 'undefined' && currentOrg ? c.org_id === currentOrg.id : true);
             
             container.innerHTML = sortedEvents.map(event => {
                 const isActive = event.id === activeEventId;
@@ -4214,11 +4318,11 @@
                     }
                 } catch(e) {}
                 
-                const total = contactsData.length;
-                const pendente = contactsData.filter(c => !c.rsvpByEvent || c.rsvpByEvent[event.id] === 'pendente' || !c.rsvpByEvent[event.id]).length;
-                const enviado = contactsData.filter(c => c.rsvpByEvent && c.rsvpByEvent[event.id] === 'enviado').length;
-                const confirmado = contactsData.filter(c => c.rsvpByEvent && c.rsvpByEvent[event.id] === 'confirmado').length;
-                const recusado = contactsData.filter(c => c.rsvpByEvent && c.rsvpByEvent[event.id] === 'recusado').length;
+                const total = contatosFiltro.length;
+                const pendente = contatosFiltro.filter(c => !c.rsvpByEvent || c.rsvpByEvent[event.id] === 'pendente' || !c.rsvpByEvent[event.id]).length;
+                const enviado = contatosFiltro.filter(c => c.rsvpByEvent && c.rsvpByEvent[event.id] === 'enviado').length;
+                const confirmado = contatosFiltro.filter(c => c.rsvpByEvent && c.rsvpByEvent[event.id] === 'confirmado').length;
+                const recusado = contatosFiltro.filter(c => c.rsvpByEvent && c.rsvpByEvent[event.id] === 'recusado').length;
                 
                 const respondidos = confirmado + recusado;
                 const pctConfirmado = total > 0 ? (confirmado / total) * 100 : 0;
@@ -4250,6 +4354,9 @@
                                         Ativar
                                     </button>
                                 ` : ''}
+                                <button onclick="openInvitationManagerModal('${event.id}')" class="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition-colors" title="Gerenciar Convites (RSVP)">
+                                    <i data-lucide="mail" class="w-4 h-4"></i>
+                                </button>
                                 <button onclick="openEditEventModal('${event.id}')" class="p-1.5 text-slate-500 hover:text-naval-blue hover:bg-slate-100 rounded transition-colors" title="Editar Evento">
                                     <i data-lucide="edit-2" class="w-4 h-4"></i>
                                 </button>
@@ -4298,48 +4405,51 @@
             const time = document.getElementById('agenda-event-time').value || '';
             const location = document.getElementById('agenda-event-location').value.trim() || '';
             const description = document.getElementById('agenda-event-description').value.trim() || '';
+            const compartilhar = document.getElementById('agenda-event-share').checked;
             
             if (!name || !date) return;
             
             const id = 'evt-' + Date.now();
-            const newEvent = { id, name, date, time, location, description };
+            const newEvent = { id, name, date, time, location, description, compartilhar };
             
-            eventsData.push(newEvent);
-            localStorage.setItem('cft_events_v5', JSON.stringify(eventsData));
-            
-            if (dbMode === 'firebase' && firebaseDb) {
-                try {
-                    await firebaseDb.collection("eventos_v5").doc(id).set(newEvent);
-                } catch(err) { console.error(err); }
-            } else if (dbMode === 'supabase' && supabaseClient) {
-                try {
-                    await supabaseClient.from('eventos_v5').upsert(newEvent);
-                } catch(err) { console.error(err); }
+            showToast("Criando evento...");
+            try {
+                if (typeof salvarEventoNuvem === 'function') {
+                    await salvarEventoNuvem(newEvent, false);
+                }
+                
+                const eventosCarregados = await carregarEventosNuvem();
+                eventsData = eventosCarregados;
+                localStorage.setItem('cft_events_v5', JSON.stringify(eventsData));
+                
+                activeEventId = id;
+                localStorage.setItem('cft_active_event_id_v5', id);
+                
+                contactsData.forEach(c => {
+                    if (!c.rsvpByEvent) c.rsvpByEvent = {};
+                    if (!c.notesByEvent) c.notesByEvent = {};
+                    c.rsvpByEvent[id] = 'pendente';
+                    c.notesByEvent[id] = '';
+                });
+                saveLocalCache();
+                
+                document.getElementById('agenda-event-name').value = '';
+                document.getElementById('agenda-event-date').value = '';
+                document.getElementById('agenda-event-time').value = '';
+                document.getElementById('agenda-event-location').value = '';
+                document.getElementById('agenda-event-description').value = '';
+                
+                showToast(`Evento "${name}" criado e ativado!`);
+                updateActiveEventBanner();
+                calculateMetrics();
+                renderLayout();
+                renderEventsList();
+                renderComSocCalendar();
+                if (typeof renderAgendaTimeline === 'function') renderAgendaTimeline();
+            } catch(err) {
+                console.error("Erro ao criar evento:", err);
+                showToast("Erro ao criar evento na nuvem.", true);
             }
-            
-            activeEventId = id;
-            localStorage.setItem('cft_active_event_id_v5', id);
-            
-            contactsData.forEach(c => {
-                if (!c.rsvpByEvent) c.rsvpByEvent = {};
-                if (!c.notesByEvent) c.notesByEvent = {};
-                c.rsvpByEvent[id] = 'pendente';
-                c.notesByEvent[id] = '';
-            });
-            saveLocalCache();
-            
-            document.getElementById('agenda-event-name').value = '';
-            document.getElementById('agenda-event-date').value = '';
-            document.getElementById('agenda-event-time').value = '';
-            document.getElementById('agenda-event-location').value = '';
-            document.getElementById('agenda-event-description').value = '';
-            
-            showToast(`Evento "${name}" criado e ativado!`);
-            updateActiveEventBanner();
-            calculateMetrics();
-            renderLayout();
-            renderEventsList();
-            renderAgendaTimeline();
         }
 
         // --- FUNÇÕES DE EDIÇÃO DE EVENTO ---
@@ -4381,31 +4491,35 @@
             const time = document.getElementById('edit-event-time').value || '';
             const location = document.getElementById('edit-event-location').value.trim() || '';
             const description = document.getElementById('edit-event-description').value.trim() || '';
+            const compartilhar = document.getElementById('edit-event-share').checked;
             
             if (!name || !date) return;
             
-            const evIdx = eventsData.findIndex(e => e.id === id);
-            if (evIdx !== -1) {
-                eventsData[evIdx] = { id, name, date, time, location, description };
-                localStorage.setItem('cft_events_v5', JSON.stringify(eventsData));
-                
-                if (dbMode === 'firebase' && firebaseDb) {
-                    try {
-                        await firebaseDb.collection("eventos_v5").doc(id).set(eventsData[evIdx]);
-                    } catch(err) { console.error(err); }
-                } else if (dbMode === 'supabase' && supabaseClient) {
-                    try {
-                        await supabaseClient.from('eventos_v5').upsert(eventsData[evIdx]);
-                    } catch(err) { console.error(err); }
+            const ev = eventsData.find(e => e.id === id);
+            if (ev) {
+                const updatedEvent = { ...ev, name, date, time, location, description, compartilhar };
+                showToast("Salvando evento...");
+                try {
+                    if (typeof salvarEventoNuvem === 'function') {
+                        await salvarEventoNuvem(updatedEvent, true);
+                    }
+                    
+                    const eventosCarregados = await carregarEventosNuvem();
+                    eventsData = eventosCarregados;
+                    localStorage.setItem('cft_events_v5', JSON.stringify(eventsData));
+                    
+                    showToast("Evento updated com sucesso!");
+                    closeEditEventModal();
+                    updateActiveEventBanner();
+                    calculateMetrics();
+                    renderLayout();
+                    renderEventsList();
+                    renderComSocCalendar();
+                    if (typeof renderAgendaTimeline === 'function') renderAgendaTimeline();
+                } catch (err) {
+                    console.error("Erro ao salvar evento:", err);
+                    showToast("Erro ao salvar alterações no evento.", true);
                 }
-                
-                showToast("Evento atualizado com sucesso!");
-                closeEditEventModal();
-                updateActiveEventBanner();
-                calculateMetrics();
-                renderLayout();
-                renderEventsList();
-                renderAgendaTimeline();
             }
         }
 
@@ -4485,30 +4599,42 @@
         }
 
         async function requestDelete(no) {
-            const contact = contactsData.find(c => c.no === no);
-            if (!contact) return;
+            const contact = contactsData.find(c => c.no === no && c.org_id === currentOrg.id);
+            if (!contact) {
+                showToast("Contato não encontrado ou você não tem permissão para excluí-lo.", true);
+                return;
+            }
 
             showConfirm(
                 "Excluir Autoridade?",
                 `Deseja realmente excluir permanentemente a autoridade "${contact.name}" do diretório?`,
                 'danger',
                 async () => {
-                    contactsData = contactsData.filter(c => c.no !== no);
-                    saveLocalCache();
-
-                    if (dbMode === 'firebase' && firebaseDb) {
-                        try {
-                            await firebaseDb.collection("contatos_v5").doc(no.toString()).delete();
-                        } catch (err) { console.error("Erro ao deletar no Firebase", err); }
-                    } else if (dbMode === 'supabase' && supabaseClient) {
-                        try {
-                            await supabaseClient.from('contatos_v5').delete().eq('no', no);
-                        } catch (err) { console.error("Erro ao deletar no Supabase", err); }
+                    showToast("Excluindo da nuvem...");
+                    try {
+                        if (typeof excluirContatoNuvem === 'function') {
+                            await excluirContatoNuvem(contact.id, contact.no, contact.name);
+                        }
+                        
+                        const contatosCarregados = await carregarContatosNuvem();
+                        contactsData = contatosCarregados.map(c => {
+                            c.no = Number(c.no);
+                            if (!c.rsvpByEvent) c.rsvpByEvent = {};
+                            if (!c.notesByEvent) c.notesByEvent = {};
+                            if (c.rsvpByEvent[activeEventId] === undefined) c.rsvpByEvent[activeEventId] = 'pendente';
+                            if (c.notesByEvent[activeEventId] === undefined) c.notesByEvent[activeEventId] = '';
+                            return c;
+                        });
+                        
+                        sortContacts();
+                        saveLocalCache();
+                        calculateMetrics();
+                        renderLayout();
+                        showToast("Autoridade excluída com sucesso!");
+                    } catch (err) {
+                        console.error("Erro ao deletar:", err);
+                        showToast("Erro ao excluir do banco de dados.", true);
                     }
-
-                    showToast("Autoridade excluída com sucesso!");
-                    calculateMetrics();
-                    renderLayout();
                 }
             );
         }
@@ -4615,7 +4741,7 @@
             for (let dia = 1; dia <= daysInMonth; dia++) {
                 const dataStr = `${year}-${String(month+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
                 const isToday = dataStr === hojeStr;
-                const eventosDia = eventsData.filter(e => e.date === dataStr);
+                const eventosDia = getFilteredEvents().filter(e => e.date === dataStr);
                 
                 html += `
                     <div onclick="preencherDataAgenda('${dataStr}')" class="bg-white min-h-[110px] p-2 flex flex-col justify-between transition-all hover:bg-slate-50 cursor-pointer ${isToday ? 'ring-2 ring-naval-accent bg-amber-50/20 z-10' : ''}">
@@ -4678,7 +4804,7 @@
                 d.setDate(d.getDate() + i);
                 const dataStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
                 const isToday = dataStr === hojeStr;
-                const eventosDia = eventsData.filter(e => e.date === dataStr);
+                const eventosDia = getFilteredEvents().filter(e => e.date === dataStr);
                 
                 html += `
                     <div onclick="preencherDataAgenda('${dataStr}')" class="bg-white min-h-[220px] p-3 flex flex-col justify-between transition-all hover:bg-slate-50 cursor-pointer ${isToday ? 'ring-2 ring-naval-accent bg-amber-50/20 z-10' : ''}">
@@ -4722,6 +4848,102 @@
             }
         }
 
+        async function recarregarAplicacaoCompleta() {
+            updateStatusBadge("loading", "Sincronizando com Supabase...");
+            try {
+                // Obter config e tema do órgão atual
+                if (typeof currentOrg !== 'undefined' && currentOrg) {
+                    unitConfig = {
+                        shortName: currentOrg.nome_curto || "ComSoc",
+                        parentOrg: currentOrg.orgao_superior || "Marinha do Brasil",
+                        fullName: currentOrg.nome_completo || "Seção de Comunicação Social",
+                        locationName: currentOrg.nome_curto || "CFT",
+                        slogan: currentOrg.slogan || "",
+                        theme: currentOrg.tema || "naval",
+                        logoBase64: currentOrg.logo_base64 || ""
+                    };
+                    applyUnitSettings();
+                }
+
+                // Carregar eventos da nuvem
+                if (typeof carregarEventosNuvem === 'function') {
+                    eventsData = await carregarEventosNuvem();
+                }
+                
+                // Se não houver eventos, criar o padrão localmente ou no banco
+                if (eventsData.length === 0) {
+                    eventsData = [{ id: 'evt-default', name: 'Evento Geral CFT 2026', date: '2026-12-31' }];
+                    if (typeof salvarEventoNuvem === 'function') {
+                        try {
+                            await salvarEventoNuvem(eventsData[0], false);
+                        } catch(err) { console.warn("Erro ao salvar evento padrão no Supabase:", err); }
+                    }
+                }
+                
+                // Definir evento ativo
+                const storedActiveId = localStorage.getItem('cft_active_event_id_v5');
+                if (storedActiveId && eventsData.some(e => e.id === storedActiveId)) {
+                    activeEventId = storedActiveId;
+                } else {
+                    activeEventId = eventsData[0].id;
+                    localStorage.setItem('cft_active_event_id_v5', activeEventId);
+                }
+
+                // Carregar contatos da nuvem
+                if (typeof carregarContatosNuvem === 'function') {
+                    const conts = await carregarContatosNuvem();
+                    contactsData = conts.map(c => {
+                        c.no = Number(c.no);
+                        if (!c.rsvpByEvent) c.rsvpByEvent = {};
+                        if (!c.notesByEvent) c.notesByEvent = {};
+                        if (c.rsvpByEvent[activeEventId] === undefined) c.rsvpByEvent[activeEventId] = 'pendente';
+                        if (c.notesByEvent[activeEventId] === undefined) c.notesByEvent[activeEventId] = '';
+                        return c;
+                    });
+                }
+
+                sortContacts();
+                saveLocalCache();
+                updateActiveEventBanner();
+                calculateMetrics();
+                
+                selectedContactNos = [];
+                updateBulkActionBar();
+                
+                renderLayout();
+                renderEventsList();
+                renderComSocCalendar();
+                if (typeof renderAgendaTimeline === 'function') renderAgendaTimeline();
+
+                updateStatusBadge("online", "Supabase Multi-Tenant");
+                showToast("Dados sincronizados com o Supabase!");
+            } catch(e) {
+                console.error("Erro na sincronização completa:", e);
+                updateStatusBadge("error", "Erro de Sincronização");
+                showToast("Erro ao carregar dados da nuvem. Usando cache local.", true);
+                
+                // Carregar cache local de contingência
+                loadUnitSettings();
+                const storedConts = localStorage.getItem('cft_contacts_v5');
+                if (storedConts) {
+                    try {
+                        contactsData = JSON.parse(storedConts);
+                    } catch(err) {}
+                }
+                const storedEvts = localStorage.getItem('cft_events_v5');
+                if (storedEvts) {
+                    try {
+                        eventsData = JSON.parse(storedEvts);
+                    } catch(err) {}
+                }
+                calculateMetrics();
+                renderLayout();
+                renderEventsList();
+                renderComSocCalendar();
+                if (typeof renderAgendaTimeline === 'function') renderAgendaTimeline();
+            }
+        }
+
         // On Page Load
         window.addEventListener('DOMContentLoaded', async () => {
             const btnCancel = document.getElementById('btn-confirm-cancel') || document.getElementById('btnConfirmCancel');
@@ -4737,10 +4959,27 @@
             }
 
             attachListeners();
-            loadUnitSettings();
-            await initDataEngine();
             
-            renderComSocCalendar();
+            const authOverlay = document.getElementById('authOverlay');
+            
+            if (typeof setupAuthObserver === 'function') {
+                setupAuthObserver(async (user, profile, org) => {
+                    if (user && org) {
+                        authOverlay.classList.add('hidden');
+                        await recarregarAplicacaoCompleta();
+                    } else {
+                        authOverlay.classList.remove('hidden');
+                        if (typeof renderizarTelaLogin === 'function') {
+                            renderizarTelaLogin();
+                        }
+                    }
+                });
+            } else {
+                // Fallback legado caso não inicialize
+                loadUnitSettings();
+                await initDataEngine();
+                renderComSocCalendar();
+            }
         });
     </script>
 </body>
