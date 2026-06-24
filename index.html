@@ -3453,13 +3453,17 @@
                 try {
                     const parsed = JSON.parse(e.target.result);
                     if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].hasOwnProperty('name')) {
-                        const destino = (typeof currentOrg !== 'undefined' && currentOrg)
-                            ? `o ComSoc "${currentOrg.nome_curto}" no Supabase`
-                            : 'o cache local do navegador';
+                        const estaLogado = (typeof currentOrg !== 'undefined' && currentOrg &&
+                                           typeof supabaseClient !== 'undefined' && supabaseClient &&
+                                           typeof currentProfile !== 'undefined' && currentProfile);
+
+                        const destino = estaLogado
+                            ? `o Supabase (ComSoc "${currentOrg.nome_curto}")`
+                            : 'o cache local do navegador (sincronize com a nuvem após fazer login)';
 
                         showConfirm(
-                            "Importar Backup para a Nuvem?",
-                            `Serão importados ${parsed.length} contatos para ${destino}. Contatos com o mesmo número de registro serão atualizados.`,
+                            "Importar Backup?",
+                            `Serão carregados ${parsed.length} contatos para ${destino}.`,
                             'info',
                             async () => {
                                 const progressBox = document.getElementById('importProgressBox');
@@ -3468,74 +3472,95 @@
                                 const progressLabel = document.getElementById('importProgressLabel');
 
                                 progressBox.classList.remove('hidden');
-                                progressBar.style.width = '0%';
+                                progressBar.style.width = '5%';
                                 progressPercent.textContent = '0%';
+                                progressLabel.textContent = 'Preparando...';
 
-                                let importCount = 0;
-                                const total = parsed.length;
-                                let erros = 0;
+                                // Sanitizar os dados do backup
+                                const contatosSanitizados = parsed.map(c => {
+                                    const limpo = { ...c };
+                                    delete limpo.id; // Remove UUID antigo; o Supabase gerará um novo
+                                    limpo.no = Number(limpo.no);
+                                    if (!limpo.rsvpByEvent) limpo.rsvpByEvent = {};
+                                    if (!limpo.notesByEvent) limpo.notesByEvent = {};
+                                    limpo.compartilhar = limpo.compartilhar ?? true;
+                                    return limpo;
+                                });
 
-                                for (const contatoRaw of parsed) {
-                                    // Sanitizar campos de identificação e garantir amarração ao órgão atual
-                                    const contato = { ...contatoRaw };
-                                    delete contato.id; // Remove UUID antigo para forçar geração do Supabase
-                                    contato.no = Number(contato.no);
-                                    if (!contato.rsvpByEvent) contato.rsvpByEvent = {};
-                                    if (!contato.notesByEvent) contato.notesByEvent = {};
-                                    contato.compartilhar = contato.compartilhar ?? true;
+                                try {
+                                    if (estaLogado) {
+                                        // --- CAMINHO NUVEM: upsert em lote no Supabase ---
+                                        const BATCH_SIZE = 20;
+                                        const total = contatosSanitizados.length;
+                                        let enviados = 0;
 
-                                    try {
-                                        if (typeof salvarContatoNuvem === 'function' && typeof currentOrg !== 'undefined' && currentOrg) {
-                                            await salvarContatoNuvem(contato, false);
-                                        } else {
-                                            // Fallback: apenas cache local
-                                            const idx = contactsData.findIndex(c => c.no === contato.no);
-                                            if (idx >= 0) contactsData[idx] = contato;
-                                            else contactsData.push(contato);
+                                        for (let i = 0; i < total; i += BATCH_SIZE) {
+                                            const lote = contatosSanitizados.slice(i, i + BATCH_SIZE).map(c => ({
+                                                ...c,
+                                                org_id: currentOrg.id,
+                                                criado_por: currentProfile.id,
+                                                atualizado_por: currentProfile.id
+                                            }));
+
+                                            const { error: errLote } = await supabaseClient
+                                                .from('contatos_v5')
+                                                .upsert(lote);
+
+                                            if (errLote) {
+                                                console.error('Erro no lote Supabase:', errLote);
+                                                throw errLote;
+                                            }
+
+                                            enviados = Math.min(i + BATCH_SIZE, total);
+                                            const pct = Math.round((enviados / total) * 100);
+                                            progressBar.style.width = `${pct}%`;
+                                            progressPercent.textContent = `${pct}%`;
+                                            progressLabel.textContent = `${enviados}/${total} contatos enviados`;
+
+                                            await new Promise(r => setTimeout(r, 150));
                                         }
-                                    } catch(err) {
-                                        console.warn(`Erro ao importar contato ${contato.name}:`, err);
-                                        erros++;
+
+                                        // Recarregar da nuvem (sem chamar recarregarAplicacaoCompleta para evitar reset)
+                                        progressLabel.textContent = 'Recarregando lista...';
+                                        if (typeof carregarContatosNuvem === 'function') {
+                                            const dadosNuvem = await carregarContatosNuvem();
+                                            if (dadosNuvem && dadosNuvem.length > 0) {
+                                                contactsData = dadosNuvem;
+                                            }
+                                        }
+                                        showToast(`${total} contatos importados para o Supabase com sucesso! ✓`);
+
+                                    } else {
+                                        // --- CAMINHO LOCAL: salvar somente no localStorage ---
+                                        contactsData = contatosSanitizados;
+                                        progressBar.style.width = '100%';
+                                        progressPercent.textContent = '100%';
+                                        progressLabel.textContent = `${contatosSanitizados.length} contatos carregados localmente`;
+                                        showToast(`${contatosSanitizados.length} contatos carregados! Faça login para sincronizar com a nuvem.`);
                                     }
 
-                                    importCount++;
-                                    const pct = Math.round((importCount / total) * 100);
-                                    progressBar.style.width = `${pct}%`;
-                                    progressPercent.textContent = `${pct}%`;
-                                    progressLabel.textContent = `${importCount}/${total} — ${contato.name}`;
-
-                                    // Breve pausa para não sobrecarregar a API
-                                    if (importCount % 10 === 0) {
-                                        await new Promise(r => setTimeout(r, 100));
-                                    }
+                                } catch (uploadErr) {
+                                    console.error('Erro durante importação:', uploadErr);
+                                    // Fallback: manter dados localmente mesmo que Supabase tenha falhado
+                                    contactsData = contatosSanitizados;
+                                    showToast(`Dados carregados localmente. Erro ao enviar à nuvem: ${uploadErr.message || 'Verifique o console.'}`, true);
                                 }
 
-                                // Recarregar dados da nuvem após importação
-                                if (typeof recarregarAplicacaoCompleta === 'function') {
-                                    await recarregarAplicacaoCompleta();
-                                } else {
-                                    sortContacts();
-                                    saveLocalCache();
-                                    calculateMetrics();
-                                    selectedContactNos = [];
-                                    updateBulkActionBar();
-                                    renderLayout();
-                                }
-
+                                // Sempre re-renderizar após importar (local ou nuvem)
+                                sortContacts();
+                                try { saveLocalCache(); } catch(_) {}
+                                calculateMetrics();
+                                selectedContactNos = [];
+                                updateBulkActionBar();
+                                renderLayout();
                                 closeBackupModal();
-
-                                if (erros === 0) {
-                                    showToast(`${total} contatos importados com sucesso para a nuvem!`);
-                                } else {
-                                    showToast(`${total - erros} importados, ${erros} com erro. Verifique o console.`, true);
-                                }
                             }
                         );
                     } else {
-                        showToast("Arquivo de backup inválido ou sem contatos reconhecíveis.", true);
+                        showToast("Arquivo inválido. O JSON deve ser um array de contatos exportado por este sistema.", true);
                     }
                 } catch(err) {
-                    showToast("Erro ao decodificar o arquivo de backup JSON.", true);
+                    showToast("Erro ao ler o arquivo JSON. O arquivo pode estar corrompido.", true);
                     console.error("Erro de parse no import:", err);
                 }
             };
