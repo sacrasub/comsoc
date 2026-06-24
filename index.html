@@ -1106,8 +1106,8 @@
                 </div>
 
                 <div class="border-t border-slate-100 pt-4">
-                    <h4 class="font-bold text-slate-800 mb-1">Importar Backup</h4>
-                    <p class="text-slate-500 text-xs mb-3">Selecione um arquivo de backup (.json) exportado anteriormente por este sistema para substituir todos os dados atuais.</p>
+                    <h4 class="font-bold text-slate-800 mb-1">Importar Backup para a Nuvem</h4>
+                    <p class="text-slate-500 text-xs mb-3">Selecione um arquivo de backup <code class="bg-slate-100 px-1 rounded">.json</code> exportado por este sistema. Os contatos serão enviados diretamente ao Supabase vinculados ao seu ComSoc atual.</p>
                     
                     <div class="relative">
                         <input type="file" id="importFile" accept=".json" class="hidden" onchange="handleImportFile(event)">
@@ -1116,6 +1116,18 @@
                         </button>
                     </div>
                     <p id="importFileName" class="text-center text-xs text-slate-400 mt-1 italic"></p>
+
+                    <!-- Progresso de Upload -->
+                    <div id="importProgressBox" class="hidden mt-3 space-y-1">
+                        <div class="flex justify-between text-[11px] font-bold text-slate-500">
+                            <span>Enviando para o Supabase...</span>
+                            <span id="importPercent">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div id="importProgressBar" class="bg-naval-blue h-full rounded-full transition-all duration-300" style="width:0%"></div>
+                        </div>
+                        <p id="importProgressLabel" class="text-[10px] text-slate-400 text-center"></p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3434,34 +3446,97 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            document.getElementById('importFileName').textContent = `Arquivo: ${file.name}`;
+            document.getElementById('importFileName').textContent = `Arquivo selecionado: ${file.name}`;
 
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const parsed = JSON.parse(e.target.result);
                     if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].hasOwnProperty('name')) {
+                        const destino = (typeof currentOrg !== 'undefined' && currentOrg)
+                            ? `o ComSoc "${currentOrg.nome_curto}" no Supabase`
+                            : 'o cache local do navegador';
+
                         showConfirm(
-                            "Importar Contatos?",
-                            `Deseja substituir sua lista atual por esta com ${parsed.length} registros? (Se estiver na Nuvem, você deverá clicar em 'Enviar Lista para Nuvem' na aba de banco para sincronizá-los).`,
+                            "Importar Backup para a Nuvem?",
+                            `Serão importados ${parsed.length} contatos para ${destino}. Contatos com o mesmo número de registro serão atualizados.`,
                             'info',
-                            () => {
-                                contactsData = parsed;
-                                sortContacts();
-                                saveLocalCache();
-                                calculateMetrics();
-                                selectedContactNos = [];
-                                updateBulkActionBar();
-                                renderLayout();
+                            async () => {
+                                const progressBox = document.getElementById('importProgressBox');
+                                const progressBar = document.getElementById('importProgressBar');
+                                const progressPercent = document.getElementById('importPercent');
+                                const progressLabel = document.getElementById('importProgressLabel');
+
+                                progressBox.classList.remove('hidden');
+                                progressBar.style.width = '0%';
+                                progressPercent.textContent = '0%';
+
+                                let importCount = 0;
+                                const total = parsed.length;
+                                let erros = 0;
+
+                                for (const contatoRaw of parsed) {
+                                    // Sanitizar campos de identificação e garantir amarração ao órgão atual
+                                    const contato = { ...contatoRaw };
+                                    delete contato.id; // Remove UUID antigo para forçar geração do Supabase
+                                    contato.no = Number(contato.no);
+                                    if (!contato.rsvpByEvent) contato.rsvpByEvent = {};
+                                    if (!contato.notesByEvent) contato.notesByEvent = {};
+                                    contato.compartilhar = contato.compartilhar ?? true;
+
+                                    try {
+                                        if (typeof salvarContatoNuvem === 'function' && typeof currentOrg !== 'undefined' && currentOrg) {
+                                            await salvarContatoNuvem(contato, false);
+                                        } else {
+                                            // Fallback: apenas cache local
+                                            const idx = contactsData.findIndex(c => c.no === contato.no);
+                                            if (idx >= 0) contactsData[idx] = contato;
+                                            else contactsData.push(contato);
+                                        }
+                                    } catch(err) {
+                                        console.warn(`Erro ao importar contato ${contato.name}:`, err);
+                                        erros++;
+                                    }
+
+                                    importCount++;
+                                    const pct = Math.round((importCount / total) * 100);
+                                    progressBar.style.width = `${pct}%`;
+                                    progressPercent.textContent = `${pct}%`;
+                                    progressLabel.textContent = `${importCount}/${total} — ${contato.name}`;
+
+                                    // Breve pausa para não sobrecarregar a API
+                                    if (importCount % 10 === 0) {
+                                        await new Promise(r => setTimeout(r, 100));
+                                    }
+                                }
+
+                                // Recarregar dados da nuvem após importação
+                                if (typeof recarregarAplicacaoCompleta === 'function') {
+                                    await recarregarAplicacaoCompleta();
+                                } else {
+                                    sortContacts();
+                                    saveLocalCache();
+                                    calculateMetrics();
+                                    selectedContactNos = [];
+                                    updateBulkActionBar();
+                                    renderLayout();
+                                }
+
                                 closeBackupModal();
-                                showToast("Backup local carregado no navegador.");
+
+                                if (erros === 0) {
+                                    showToast(`${total} contatos importados com sucesso para a nuvem!`);
+                                } else {
+                                    showToast(`${total - erros} importados, ${erros} com erro. Verifique o console.`, true);
+                                }
                             }
                         );
                     } else {
-                        showToast("Arquivo de backup inválido.", true);
+                        showToast("Arquivo de backup inválido ou sem contatos reconhecíveis.", true);
                     }
                 } catch(err) {
-                    showToast("Erro ao decodificar arquivo de backup.", true);
+                    showToast("Erro ao decodificar o arquivo de backup JSON.", true);
+                    console.error("Erro de parse no import:", err);
                 }
             };
             reader.readAsText(file);
