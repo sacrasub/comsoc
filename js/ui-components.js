@@ -315,32 +315,101 @@ async function handleCadastrarMembroSubmit(event) {
 
     showToast("Cadastrando novo membro...");
     try {
-        // Fluxo de convite:
-        // Como o admin não pode rodar auth.signUp para outro usuário sem mudar de sessão,
-        // o Supabase permite criar usuários via Trigger ou convidar usuários via API do Auth Admin.
-        // No client standard, criamos o registro em `perfis_usuarios` com um ID gerado temporariamente
-        // e deixamos pendente, ou instruímos o usuário a se cadastrar.
-        // Neste sistema de rede militar simplificado, criaremos o perfil diretamente no banco
-        // usando a URL do email como ponte de conexão para quando o usuário fizer o Sign Up na tela inicial.
+        // Criar o usuário no Supabase Auth usando um cliente secundário para não deslogar o admin atual
+        const tempClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false
+            }
+        });
         
-        // Criar perfil com UUID gerado localmente
-        const tempId = gen_random_uuid_client();
-        const { error } = await supabaseClient
+        const defaultPassword = "SenhaComSoc123!";
+        let userId = null;
+
+        // 1. Tentar cadastrar o usuário no Auth
+        const { data: authData, error: authErr } = await tempClient.auth.signUp({
+            email: email,
+            password: defaultPassword
+        });
+
+        // Tratar caso o e-mail já esteja cadastrado no Auth
+        if (authErr && (authErr.message.includes("already registered") || authErr.message.includes("already exists"))) {
+            console.log("Usuário já registrado no Auth. Tentando obter o ID via Login...");
+            const { data: logData, error: logErr } = await tempClient.auth.signInWithPassword({
+                email: email,
+                password: defaultPassword
+            });
+            if (logErr) throw new Error("Este e-mail já possui conta com outra senha. O operador deve fazer login com sua senha.");
+            userId = logData.user?.id;
+        } else if (authErr) {
+            throw authErr;
+        } else {
+            // Se o signup funcionou mas o e-mail já existia (obfuscated signup do Supabase), identities virá vazio
+            const identities = authData.user?.identities;
+            if (identities && identities.length === 0) {
+                console.log("Usuário já existe (identidades vazias). Tentando login para obter ID...");
+                const { data: logData, error: logErr } = await tempClient.auth.signInWithPassword({
+                    email: email,
+                    password: defaultPassword
+                });
+                if (logErr) throw new Error("Este e-mail já possui conta. O operador deve fazer login com seus dados.");
+                userId = logData.user?.id;
+            } else {
+                userId = authData.user?.id;
+            }
+        }
+
+        if (!userId) throw new Error("Não foi possível obter o ID do novo usuário.");
+
+        // 2. Upsert no perfil de usuário para vincular à organização
+        const { data: upsertData, error: upsertErr } = await supabaseClient
             .from('perfis_usuarios')
-            .insert({
-                id: tempId,
+            .upsert({
+                id: userId,
                 org_id: currentOrg.id,
                 role: role,
                 nome: nome
-            });
+            })
+            .select();
 
-        if (error) throw error;
+        if (upsertErr) {
+            // Se ainda assim der erro de FK, tenta uma última recuperação via login
+            if (upsertErr.message.includes("violates foreign key constraint")) {
+                console.log("Falha de FK. Tentando login para recuperar ID real...");
+                const { data: logData, error: logErr } = await tempClient.auth.signInWithPassword({
+                    email: email,
+                    password: defaultPassword
+                });
+                if (!logErr && logData.user?.id) {
+                    const { error: retryErr } = await supabaseClient
+                        .from('perfis_usuarios')
+                        .upsert({
+                            id: logData.user.id,
+                            org_id: currentOrg.id,
+                            role: role,
+                            nome: nome
+                        });
+                    if (!retryErr) {
+                        showToast(`Membro "${nome}" cadastrado com sucesso!`);
+                        document.getElementById('addMemberForm').reset();
+                        await atualizarTabelaMembros();
+                        await registrarLogAlteracao('perfis_usuarios', 'inserir', `Convidou/cadastrou o operador: ${nome} (Permissão: ${role})`);
+                        return;
+                    }
+                }
+            }
+            throw upsertErr;
+        }
         
-        showToast(`Membro "${nome}" cadastrado! Ele pode se registrar usando o e-mail: ${email}`);
+        console.log("Perfil cadastrado/atualizado com sucesso:", upsertData);
+        
+        showToast(`Membro "${nome}" cadastrado! Ele pode logar com a senha padrão: ${defaultPassword}`);
         document.getElementById('addMemberForm').reset();
         await atualizarTabelaMembros();
         await registrarLogAlteracao('perfis_usuarios', 'inserir', `Convidou/cadastrou o operador: ${nome} (Permissão: ${role})`);
     } catch (e) {
+        console.error("Erro geral no cadastro de membro:", e);
         showToast("Erro ao cadastrar membro: " + e.message, true);
     }
 }

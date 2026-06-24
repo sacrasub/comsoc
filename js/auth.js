@@ -146,33 +146,34 @@ async function createUserForOrg(email, password, nome, role) {
     }
 
     try {
-        // Como o Supabase Auth no lado do cliente não permite criar outros usuários diretamente sem fazer login com eles,
-        // o fluxo comum para simplificar em apps estáticos sem backend dedicado é usar o método signUp padrão do Supabase.
-        // O administrador cria o usuário e, em seguida, precisamos criar o perfil vinculado à organização dele.
-        // NOTA: Para evitar deslogar o admin ao criar outro usuário, o ideal é cadastrar o perfil e permitir que o novo usuário
-        // se registre no primeiro login, ou usar um convite por link.
-        // Para simplificar a experiência do usuário do CFT:
-        // O administrador gera um novo cadastro (signUp). Como o client SDK desloga o usuário atual ao fazer signUp, 
-        // usaremos uma estratégia de "cadastrar na tabela convites" ou cadastrar no Auth usando uma chamada do Supabase,
-        // mas para evitar deslogar o admin, podemos instruir o admin a cadastrar uma conta temporária, ou usar uma tabela de "cadastros_pendentes"
-        // que o admin aprova, e o próprio usuário se registra e vincula.
+        // Criar o usuário no Supabase Auth usando um cliente secundário para não deslogar o admin atual
+        const tempClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false
+            }
+        });
+
+        const { data: authData, error: authErr } = await tempClient.auth.signUp({
+            email: email,
+            password: password
+        });
+
+        if (authErr) throw authErr;
         
-        // Estratégia de convite simplificada:
-        // O admin cria o perfil do usuário direto em 'perfis_usuarios' com um ID provisório ou email, e quando o usuário se registra,
-        // o sistema vincula.
-        // Outra alternativa é usar a função de Sign Up normal. Vamos criar uma tabela auxiliar se necessário, mas para esse projeto:
-        // O admin insere o novo perfil de usuário e o usuário faz o cadastro no primeiro acesso usando o email convidado.
-        
-        const tempId = gen_random_uuid_client(); // uuid provisório
+        const userId = authData.user?.id;
+        if (!userId) throw new Error("Não foi possível obter o ID do novo usuário.");
+
         const { data, error } = await supabaseClient
             .from('perfis_usuarios')
-            .insert({
-                id: tempId,
+            .upsert({
+                id: userId,
                 org_id: currentProfile.org_id,
                 role: role,
-                nome: nome,
-                // Guardamos o email em uma coluna extra se desejado, mas para simplificar, usaremos o fluxo de convites na UI.
-            });
+                nome: nome
+            })
+            .select();
         if (error) throw error;
         return data;
     } catch (e) {

@@ -52,10 +52,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- ComSoc modular script components (Fase 2) -->
-    <script src="js/supabase-config.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/db.js"></script>
-    <script src="js/ui-components.js"></script>
+    <script src="js/supabase-config.js?v=2.3"></script>
+    <script src="js/auth.js?v=2.3"></script>
+    <script src="js/db.js?v=2.3"></script>
+    <script src="js/ui-components.js?v=2.3"></script>
 
     <style>
         :root {
@@ -1389,9 +1389,12 @@
     </div>
 
     <!-- NOTIFICATION TOAST -->
-    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3 rounded-lg shadow-xl flex items-center gap-3">
-        <span class="text-naval-accent" id="toastIcon"><i data-lucide="check-circle" class="w-5 h-5"></i></span>
-        <span class="text-sm font-medium" id="toastMessage">Operação realizada com sucesso!</span>
+    <div id="toastNotification" class="fixed bottom-5 right-5 z-[250] transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white px-5 py-3 rounded-lg shadow-xl flex items-center gap-3 max-w-md select-text">
+        <span class="text-naval-accent flex-shrink-0" id="toastIcon"><i data-lucide="check-circle" class="w-5 h-5"></i></span>
+        <span class="text-sm font-medium flex-grow break-words" id="toastMessage">Operação realizada com sucesso!</span>
+        <button id="btnToastClose" onclick="closeToast()" class="text-white/70 hover:text-white transition-colors ml-2 hidden" title="Fechar erro">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
     </div>
 
     <!-- SCRIPTS -->
@@ -2612,7 +2615,12 @@
 
             try {
                 if (typeof salvarContatoNuvem === 'function') {
-                    await salvarContatoNuvem(contact, true);
+                    // Enviar cópia limpa sem campos inexistentes no banco
+                    const contactCopy = { ...contact };
+                    delete contactCopy.rsvp;
+                    delete contactCopy.rsvpByEvent;
+                    delete contactCopy.notesByEvent;
+                    await salvarContatoNuvem(contactCopy, true);
                 }
 
                 if (typeof carregarConvitesEvento === 'function' && typeof salvarConviteEvento === 'function') {
@@ -2637,7 +2645,7 @@
                 showToast(`RSVP de "${name}" atualizado para ${status}.`);
             } catch (e) {
                 console.error("Erro ao atualizar RSVP:", e);
-                showToast(`Erro ao atualizar RSVP na nuvem.`, true);
+                showToast(`Erro ao atualizar RSVP na nuvem: ${e.message || e}`, true);
             }
         }
 
@@ -2656,11 +2664,15 @@
                         c.rsvp = 'pendente';
                         if (dbMode === 'firebase' && firebaseDb) {
                             try {
-                                await firebaseDb.collection("contatos_v5").doc(c.no.toString()).set(c);
+                                const dbContact = { ...c };
+                                delete dbContact.rsvp; delete dbContact.rsvpByEvent; delete dbContact.notesByEvent;
+                                await firebaseDb.collection("contatos_v5").doc(c.no.toString()).set(dbContact);
                             } catch(e) { failures++; }
                         } else if (dbMode === 'supabase' && supabaseClient) {
                             try {
-                                await supabaseClient.from('contatos_v5').upsert(c);
+                                const dbContact = { ...c };
+                                delete dbContact.rsvp; delete dbContact.rsvpByEvent; delete dbContact.notesByEvent;
+                                await supabaseClient.from('contatos_v5').upsert(dbContact);
                             } catch(e) { failures++; }
                         }
                     }
@@ -2828,10 +2840,16 @@
                 contactObj.id = existingContact.id;
             }
 
+            // Enviar cópia limpa sem os campos que não existem na tabela do banco
+            const dbContactObj = { ...contactObj };
+            delete dbContactObj.rsvp;
+            delete dbContactObj.rsvpByEvent;
+            delete dbContactObj.notesByEvent;
+
             showToast("Salvando na nuvem...");
             try {
                 if (typeof salvarContatoNuvem === 'function') {
-                    await salvarContatoNuvem(contactObj, isEdit);
+                    await salvarContatoNuvem(dbContactObj, isEdit);
                 }
 
                 const contatosCarregados = await carregarContatosNuvem();
@@ -4644,31 +4662,51 @@
         }
 
         // --- SISTEMA DE TOAST E CONFIRMAÇÃO DE DIALOG ---
+        let toastTimeout = null;
+
+        function closeToast() {
+            const toast = document.getElementById('toastNotification');
+            if (toast) {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }
+        }
+
         function showToast(message, isError = false) {
             const toast = document.getElementById('toastNotification');
             const iconSpan = document.getElementById('toastIcon');
             const msgSpan = document.getElementById('toastMessage');
+            const closeBtn = document.getElementById('btnToastClose');
             if (!toast) return;
+
+            if (toastTimeout) {
+                clearTimeout(toastTimeout);
+                toastTimeout = null;
+            }
 
             msgSpan.textContent = message;
             if (isError) {
                 toast.classList.remove('bg-slate-900');
                 toast.classList.add('bg-rose-600');
                 iconSpan.innerHTML = '<i data-lucide="alert-circle" class="w-5 h-5 text-white"></i>';
+                if (closeBtn) closeBtn.classList.remove('hidden');
             } else {
                 toast.classList.remove('bg-rose-600');
                 toast.classList.add('bg-slate-900');
                 iconSpan.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5 text-naval-accent"></i>';
+                if (closeBtn) closeBtn.classList.add('hidden');
             }
             lucide.createIcons();
 
             toast.classList.remove('translate-y-20', 'opacity-0');
             toast.classList.add('translate-y-0', 'opacity-100');
 
-            setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
+            // Se não for erro, fecha automaticamente após 3 segundos
+            if (!isError) {
+                toastTimeout = setTimeout(() => {
+                    closeToast();
+                }, 3000);
+            }
         }
 
         let confirmActionCallback = null;

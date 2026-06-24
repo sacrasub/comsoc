@@ -110,20 +110,28 @@ async function carregarContatosNuvem() {
 async function salvarContatoNuvem(contactObj, isEdit = false) {
     if (!supabaseClient || !currentOrg || !currentProfile) return;
 
+    // Clonar o objeto para não modificar o objeto original em uso na UI
+    const dbContact = { ...contactObj };
+
     // Garantir amarração da organização atual
-    contactObj.org_id = currentOrg.id;
+    dbContact.org_id = currentOrg.id;
     if (isEdit) {
-        contactObj.atualizado_por = currentProfile.id;
-        contactObj.atualizado_em = new Date().toISOString();
+        dbContact.atualizado_por = currentProfile.id;
+        dbContact.atualizado_em = new Date().toISOString();
     } else {
-        contactObj.criado_por = currentProfile.id;
-        contactObj.atualizado_por = currentProfile.id;
+        dbContact.criado_por = currentProfile.id;
+        dbContact.atualizado_por = currentProfile.id;
     }
+
+    // Remover campos de controle de UI/Client-side que não existem na tabela do banco
+    delete dbContact.rsvpByEvent;
+    delete dbContact.notesByEvent;
+    delete dbContact.rsvp;
 
     try {
         const { error } = await supabaseClient
             .from('contatos_v5')
-            .upsert(contactObj);
+            .upsert(dbContact);
 
         if (error) throw error;
 
