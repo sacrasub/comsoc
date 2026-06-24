@@ -3495,12 +3495,32 @@
                                         let enviados = 0;
 
                                         for (let i = 0; i < total; i += BATCH_SIZE) {
-                                            const lote = contatosSanitizados.slice(i, i + BATCH_SIZE).map(c => ({
-                                                ...c,
-                                                org_id: currentOrg.id,
-                                                criado_por: currentProfile.id,
-                                                atualizado_por: currentProfile.id
-                                            }));
+                                            const lote = contatosSanitizados.slice(i, i + BATCH_SIZE).map(c => {
+                                                // Mesclar rsvp legado no rsvpByEvent para não perder dado
+                                                const rsvpByEventFinal = { ...(c.rsvpByEvent || {}) };
+                                                if (c.rsvp && !rsvpByEventFinal['evt-default']) {
+                                                    rsvpByEventFinal['evt-default'] = c.rsvp;
+                                                }
+
+                                                // Somente colunas que existem na tabela contatos_v5
+                                                return {
+                                                    no:            c.no,
+                                                    title:         c.title         || '',
+                                                    name:          c.name          || '',
+                                                    role:          c.role          || '',
+                                                    category:      c.category      || 'civil',
+                                                    militaryForce: c.militaryForce || '',
+                                                    phone:         c.phone         || '',
+                                                    email:         c.email         || '',
+                                                    observation:   c.observation   || '',
+                                                    rsvpByEvent:   rsvpByEventFinal,
+                                                    notesByEvent:  c.notesByEvent  || {},
+                                                    compartilhar:  c.compartilhar  ?? true,
+                                                    org_id:        currentOrg.id,
+                                                    criado_por:    currentProfile.id,
+                                                    atualizado_por: currentProfile.id
+                                                };
+                                            });
 
                                             const { error: errLote } = await supabaseClient
                                                 .from('contatos_v5')
