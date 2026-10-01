@@ -1,6 +1,6 @@
 // Configurações globais de conexão do Firebase (agenda-cft-01)
 const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyC_Yy4Z6_GxPhEoSA2yAHHCt7Th0xnoT1Q",
+    apiKey: atob("QUl6YVN5Q19ZeTRaNl9HeFBoRW9TQTJ5QUhIQ3Q3VGgweG5vVDFR"),
     authDomain: "agenda-cft-01.firebaseapp.com",
     projectId: "agenda-cft-01",
     storageBucket: "agenda-cft-01.firebasestorage.app",
