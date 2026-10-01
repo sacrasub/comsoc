@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "comsoc-cft",
   "buildCommand": null,
   "outputDirectory": ".",
   "routes": [
