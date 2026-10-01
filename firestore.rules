@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regra para o ComSoc e Agenda CFT da Capitania Fluvial de Tabatinga
+    // Permite leitura e escrita para garantir sincronização via Google Auth, E-mail ou contingência local
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

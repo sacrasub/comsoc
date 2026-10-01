@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Sistema Eletrônico de Votação – Capitania Fluvial de Tabatinga" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>SEV-CFT – Sistema Eletrônico de Votação</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="votacao.css" />
+</head>
+<body>
+
+  <!-- TELA DE CARREGAMENTO -->
+  <div id="loading-screen" class="loading-screen" aria-live="polite" role="status">
+    <div class="loading-content">
+      <div class="loading-logo">
+        <svg class="logo-marinha-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-label="Logo da Marinha do Brasil">
+          <circle cx="60" cy="60" r="58" fill="#003366" stroke="#C9A227" stroke-width="4"/>
+          <circle cx="60" cy="60" r="44" fill="none" stroke="#C9A227" stroke-width="2"/>
+          <polygon points="60,20 65,50 95,50 72,68 81,98 60,80 39,98 48,68 25,50 55,50" fill="#C9A227"/>
+          <text x="60" y="115" text-anchor="middle" fill="#C9A227" font-size="8" font-family="Inter,sans-serif" font-weight="700">MARINHA DO BRASIL</text>
+        </svg>
+      </div>
+      <div class="loading-bar-wrapper">
+        <div class="loading-bar" id="loading-bar"></div>
+      </div>
+      <p class="loading-text">Inicializando sistema...</p>
+    </div>
+  </div>
+
+  <!-- APLICAÇÃO PRINCIPAL -->
+  <div id="app" class="app" style="display:none;">
+
+    <!-- CABEÇALHO -->
+    <header class="site-header" role="banner">
+      <div class="header-inner container">
+        <div class="header-logos">
+          <div class="logo-wrap" title="Marinha do Brasil">
+            <svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="48" fill="#003366" stroke="#C9A227" stroke-width="3"/>
+              <circle cx="50" cy="50" r="36" fill="none" stroke="#C9A227" stroke-width="1.5"/>
+              <polygon points="50,16 54,38 77,38 59,52 66,74 50,60 34,74 41,52 23,38 46,38" fill="#C9A227"/>
+            </svg>
+          </div>
+          <div class="logo-divider" aria-hidden="true"></div>
+          <div class="logo-wrap" title="Capitania Fluvial de Tabatinga">
+            <svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="48" fill="#00509E" stroke="#C9A227" stroke-width="3"/>
+              <text x="50" y="42" text-anchor="middle" fill="#FFFFFF" font-size="18" font-family="Inter,sans-serif" font-weight="800">CFT</text>
+              <text x="50" y="60" text-anchor="middle" fill="#C9A227" font-size="7" font-family="Inter,sans-serif" font-weight="500">CAPITANIA</text>
+              <text x="50" y="70" text-anchor="middle" fill="#C9A227" font-size="7" font-family="Inter,sans-serif" font-weight="500">TABATINGA</text>
+              <path d="M20 78 Q35 70 50 76 Q65 82 80 78" stroke="#C9A227" stroke-width="2" fill="none"/>
+            </svg>
+          </div>
+        </div>
+        <div class="header-title">
+          <h1 class="system-title">Sistema Eletrônico de Votação</h1>
+          <p class="system-subtitle">Capitania Fluvial de Tabatinga &mdash; CFT</p>
+        </div>
+        <div class="header-controls" style="display: flex; gap: 8px; align-items: center;">
+          <!-- Informações de usuário logado -->
+          <div id="header-user-info" style="display: none; align-items: center; gap: 6px; padding: 6.5px 12px; font-size: 0.82rem; border-radius: 20px; font-weight: 600; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: #fff;">
+            👤 <span id="header-user-name">...</span>
+          </div>
+          <!-- Botão Sair -->
+          <button id="btn-sair-urna" class="btn btn-outline btn-sm" style="display: none; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.85rem; border-radius: 20px; font-weight: 600; cursor: pointer; border-color: #ef4444; color: #fca5a5; background: rgba(239, 68, 68, 0.1);" title="Sair da Urna e deslogar">
+            🚪 <span>Sair</span>
+          </button>
+          <button id="btn-ajuda" class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.85rem; border-radius: 20px; font-weight: 600; cursor: pointer; border-color: var(--navy-300);" title="Manual de Instruções" aria-label="Manual de Instruções">
+            <span>❓ Ajuda</span>
+          </button>
+          <button id="btn-dark-mode" class="btn-icon" title="Alternar modo escuro" aria-label="Alternar modo escuro">
+            <span class="icon-moon">🌙</span>
+            <span class="icon-sun" style="display:none;">☀️</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="status-bar" role="complementary" aria-label="Status da votação">
+        <div class="container status-bar-inner">
+          <div class="status-datetime">
+            <span id="status-data" class="status-date" aria-live="polite"></span>
+            <span class="status-sep">|</span>
+            <span id="status-hora" class="status-time" aria-live="polite"></span>
+          </div>
+          <div class="status-progress-wrap">
+            <span class="status-progress-label">Participação:</span>
+            <div class="progress-bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Progresso da votação">
+              <div id="progress-bar-fill" class="progress-bar-fill"></div>
+            </div>
+            <span id="progress-text" class="status-progress-text">0 / 0 votos</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main id="main-content" class="main-content" role="main">
+      <div class="container">
+
+        <!-- SEÇÃO 1: IDENTIFICAÇÃO DO OFICIAL -->
+        <section id="section-identificacao" class="section section-identificacao" aria-label="Identificação do Oficial">
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-icon" aria-hidden="true">🪪</div>
+              <div>
+                <h2 class="section-title">Identificação do Oficial</h2>
+                <p class="section-desc">Selecione seu nome para iniciar a votação. Cada oficial poderá votar apenas uma única vez, e deverá confirmar sua identidade com o NIP.</p>
+              </div>
+            </div>
+
+            <!-- Detalhes do Evento Ativo -->
+            <div id="info-evento-ativo-container" class="alert alert-info" style="margin-top: 1rem; border-left-color: var(--navy-500); background: var(--navy-50); color: var(--navy-900); display: none; align-items: flex-start; gap: 12px; border-left-width: 4px; border-radius: var(--radius-md); padding: var(--space-4);">
+              <span style="font-size: 1.5rem; line-height: 1;">🗳️</span>
+              <div>
+                <strong style="color: var(--navy-800); font-weight: 700; display: block;">Votação Ativa: <span id="nome-evento-ativo-display">Nenhuma</span></strong>
+                <p style="font-size: var(--text-xs); margin-top: 4px; color: var(--navy-600); line-height: 1.4;" id="desc-evento-ativo-display"></p>
+              </div>
+            </div>
+
+            <!-- Mensagem de Restrição de Acesso -->
+            <div id="restricao-acesso-mensagem" class="alert alert-warning" style="display:none; flex-direction:column; align-items:center; text-align:center; padding:2rem; gap:1rem; margin-top:1.5rem; background:#fffbeb; border:1px solid #fef3c7; color:#92400e; border-radius:var(--radius-md);">
+              <span style="font-size:2.5rem; margin:0;">⚠️</span>
+              <h3 style="margin:0; font-size:1.25rem; font-weight:700; color:#b45309;">Acesso Restrito</h3>
+              <p style="margin:0; font-size:0.95rem; line-height:1.5;">O Sistema de Votação é restrito a Oficiais habilitados e administradores.<br>Os resultados parciais estão ocultos por sigilo e serão disponibilizados após o encerramento da votação.</p>
+            </div>
+
+            <!-- Controles de Identificação (Exibidos apenas com evento ativo) -->
+            <div id="identificacao-controles-wrap">
+              <div class="form-group" style="margin-top: 1.5rem;">
+                <label for="select-oficial" class="form-label">Selecione seu nome <span class="required">*</span></label>
+                <div class="select-wrapper">
+                  <select id="select-oficial" class="form-select" aria-required="true">
+                    <option value="">— Selecione seu nome —</option>
+                  </select>
+                  <span class="select-arrow" aria-hidden="true">▼</span>
+                </div>
+              </div>
+
+              <div id="oficial-info" class="eleitor-info" style="display:none;" aria-live="polite">
+                <div class="eleitor-badge">
+                  <div class="eleitor-avatar" id="oficial-avatar" aria-hidden="true"></div>
+                  <div class="eleitor-dados">
+                    <span class="eleitor-nome" id="oficial-nome-display"></span>
+                    <span class="eleitor-posto" id="oficial-posto-display"></span>
+                  </div>
+                  <div id="oficial-status-badge" class="badge" aria-live="assertive"></div>
+                </div>
+              </div>
+
+              <div id="alerta-ja-votou" class="alert alert-warning" style="display:none;" role="alert" aria-live="assertive">
+                <span class="alert-icon">⚠️</span>
+                <div>
+                  <strong>Voto já registrado</strong>
+                  <p>Este oficial já exerceu seu direito de voto. Não é possível votar novamente.</p>
+                </div>
+              </div>
+
+              <button id="btn-iniciar-votacao" class="btn btn-primary btn-large" style="display:none;" aria-label="Iniciar processo de votação">
+                <span>Iniciar Votação</span>
+                <span class="btn-icon-right" aria-hidden="true">→</span>
+              </button>
+            </div>
+
+            <!-- Painel de Resultados do Evento Encerrado (Exibido se a votação estiver ativa porém já com status 'encerrado') -->
+            <div id="resultado-evento-encerrado-wrap" style="display:none; margin-top: 1.5rem;">
+              <div class="alert alert-success" style="border-left-color: var(--success); background: #ecfdf5; color: #065f46; display: flex; align-items: flex-start; gap: 12px; border-left-width: 4px; border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: 1.5rem;">
+                <span style="font-size: 1.5rem; line-height: 1;">🏆</span>
+                <div>
+                  <strong style="color: #047857; font-weight: 700; display: block;">Período de Votação Encerrado!</strong>
+                  <p style="font-size: var(--text-xs); margin-top: 4px; color: #065f46; line-height: 1.4;">A votação para esta eleição foi encerrada. Veja abaixo o resultado final apurado para este evento.</p>
+                </div>
+              </div>
+              
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-top: 1.5rem;" class="admin-two-col">
+                <div class="section-card" style="box-shadow: none; border: 1px solid var(--border-color); padding: var(--space-4);">
+                  <h4 style="font-size: 1rem; font-weight: 700; color: var(--navy-800); margin-bottom: var(--space-3); border-bottom: 2px solid var(--navy-500); padding-bottom: 6px;">⚓ Suboficiais / Sargentos</h4>
+                  <div class="overflow-x">
+                    <table class="apuracao-table" style="font-size: var(--text-sm);">
+                      <thead><tr><th>Rank</th><th>Candidato</th><th>Posto</th><th style="text-align:right;">Votos</th></tr></thead>
+                      <tbody id="resultado-publico-so-tbody"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="section-card" style="box-shadow: none; border: 1px solid var(--border-color); padding: var(--space-4);">
+                  <h4 style="font-size: 1rem; font-weight: 700; color: var(--navy-800); margin-bottom: var(--space-3); border-bottom: 2px solid var(--navy-500); padding-bottom: 6px;">🚢 Cabos / Marinheiros</h4>
+                  <div class="overflow-x">
+                    <table class="apuracao-table" style="font-size: var(--text-sm);">
+                      <thead><tr><th>Rank</th><th>Candidato</th><th>Posto</th><th style="text-align:right;">Votos</th></tr></thead>
+                      <tbody id="resultado-publico-cb-tbody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mensagem de Espera (Exibida se NÃO houver evento ativo) -->
+            <div id="sem-votacao-ativa-mensagem" class="text-center py-12" style="display:none; padding: 3rem 1.5rem; text-align: center;">
+              <span style="font-size: 4.5rem; display: block; margin-bottom: var(--space-4); animation: pulse 2s infinite ease-in-out;">⚓</span>
+              <h3 style="font-size: var(--text-xl); font-weight: 700; color: var(--navy-700); margin-bottom: var(--space-2);">Nenhuma Votação Ativa</h3>
+              <p style="color: var(--text-secondary); max-width: 460px; margin: 0 auto; font-size: var(--text-sm); line-height: 1.6;">No momento não há nenhum processo eleitoral ativo no sistema. Por favor, aguarde o ComSoc iniciar o período de votação ou entre em contato com a equipe de apoio.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- SEÇÃO: RESULTADOS HISTÓRICOS (pública) -->
+        <section id="section-resultados-historicos" class="section" aria-label="Resultados de Eleições Anteriores" style="padding-bottom: 2rem;">
+          <div class="section-card" style="max-width: 900px; margin: 0 auto;">
+            <div class="section-header" style="cursor:pointer;" id="btn-toggle-historico" role="button" aria-expanded="false" aria-controls="historico-body">
+              <div class="section-icon" aria-hidden="true">📋</div>
+              <div>
+                <h2 class="section-title" style="font-size:1.1rem;">Resultados de Eleições Anteriores</h2>
+                <p class="section-desc" style="font-size:0.85rem;">Clique para consultar o histórico de eleições realizadas.</p>
+              </div>
+              <span id="historico-chevron" style="margin-left:auto; font-size:1.4rem; transition:transform .3s;">▼</span>
+            </div>
+            <div id="historico-body" style="display:none; margin-top:1rem;">
+              <div id="historico-lista-vazia" style="text-align:center; color:var(--text-muted,#94a3b8); padding:2rem 0; display:none;">
+                <span style="font-size:2.5rem;">📭</span>
+                <p style="margin-top:.5rem;">Nenhuma eleição registrada no histórico.</p>
+              </div>
+              <div id="historico-cards" style="display:flex; flex-direction:column; gap:1rem;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SEÇÃO 2: VOTAÇÃO -->
+        <section id="section-votacao" class="section section-votacao" style="display:none;" aria-label="Cédula de Votação">
+          <div class="cedula-progress" role="status" aria-live="polite">
+            <div class="cedula-step" id="step-so" data-step="1">
+              <div class="step-dot active" aria-hidden="true">1</div>
+              <span>Suboficiais / Sargentos</span>
+            </div>
+            <div class="step-line" aria-hidden="true"></div>
+            <div class="cedula-step" id="step-cb" data-step="2">
+              <div class="step-dot" aria-hidden="true">2</div>
+              <span>Cabos / Marinheiros</span>
+            </div>
+            <div class="step-line" aria-hidden="true"></div>
+            <div class="cedula-step" id="step-confirm" data-step="3">
+              <div class="step-dot" aria-hidden="true">✓</div>
+              <span>Confirmar</span>
+            </div>
+          </div>
+
+          <!-- GRUPO SO/SG -->
+          <div id="grupo-so" class="grupo-votacao">
+            <div class="section-card">
+              <div class="section-header">
+                <div class="section-icon" aria-hidden="true">⚓</div>
+                <div>
+                  <h2 class="section-title">Grupo 1 – Suboficiais e Sargentos</h2>
+                  <p class="section-desc">Selecione <strong>exatamente um</strong> candidato para o cargo de Representante de SO/SG.</p>
+                </div>
+              </div>
+              <div class="candidatos-toolbar">
+                <div class="search-wrapper">
+                  <span class="search-icon" aria-hidden="true">🔍</span>
+                  <input type="search" id="pesquisa-so" class="form-input search-input" placeholder="Pesquisar candidato..." aria-label="Pesquisar candidatos SO/SG" />
+                </div>
+                <div class="toolbar-actions">
+                  <button class="btn btn-outline btn-sm" id="btn-ordem-so" data-ordem="asc" aria-label="Ordenar candidatos">A→Z</button>
+                </div>
+              </div>
+              <div id="grid-so" class="candidatos-grid" role="radiogroup" aria-label="Candidatos Suboficiais e Sargentos"></div>
+              <p id="sem-resultado-so" class="sem-resultado" style="display:none;">Nenhum candidato encontrado.</p>
+            </div>
+            <div class="section-actions">
+              <button id="btn-avancar-cb" class="btn btn-primary btn-large" disabled aria-label="Avançar para Cabos e Marinheiros">
+                Avançar: Cabos / Marinheiros →
+              </button>
+            </div>
+          </div>
+
+          <!-- GRUPO CB/MN -->
+          <div id="grupo-cb" class="grupo-votacao" style="display:none;">
+            <div class="section-card">
+              <div class="section-header">
+                <div class="section-icon" aria-hidden="true">🚢</div>
+                <div>
+                  <h2 class="section-title">Grupo 2 – Cabos e Marinheiros</h2>
+                  <p class="section-desc">Selecione <strong>exatamente um</strong> candidato para o cargo de Representante de CB/MN.</p>
+                </div>
+              </div>
+              <div class="candidatos-toolbar">
+                <div class="search-wrapper">
+                  <span class="search-icon" aria-hidden="true">🔍</span>
+                  <input type="search" id="pesquisa-cb" class="form-input search-input" placeholder="Pesquisar candidato..." aria-label="Pesquisar candidatos CB/MN" />
+                </div>
+                <div class="toolbar-actions">
+                  <button class="btn btn-outline btn-sm" id="btn-ordem-cb" data-ordem="asc" aria-label="Ordenar candidatos">A→Z</button>
+                </div>
+              </div>
+              <div id="grid-cb" class="candidatos-grid" role="radiogroup" aria-label="Candidatos Cabos e Marinheiros"></div>
+              <p id="sem-resultado-cb" class="sem-resultado" style="display:none;">Nenhum candidato encontrado.</p>
+            </div>
+            <div class="section-actions">
+              <button class="btn btn-outline btn-large" id="btn-voltar-so" aria-label="Voltar para Suboficiais e Sargentos">← Voltar</button>
+              <button id="btn-confirmar-voto" class="btn btn-success btn-large" disabled aria-label="Avançar para confirmar voto">✔ Confirmar Voto</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- SEÇÃO 3: VOTO REGISTRADO -->
+        <section id="section-sucesso" class="section section-sucesso" style="display:none;" aria-live="polite" role="status">
+          <div class="section-card card-sucesso">
+            <div class="sucesso-icon" aria-hidden="true">✅</div>
+            <h2 class="sucesso-titulo">Voto registrado com sucesso!</h2>
+            <p class="sucesso-desc">Seu voto foi registrado de forma segura e sigilosa.<br/>Obrigado pela sua participação.</p>
+            <div class="sucesso-info" id="sucesso-info"></div>
+            <button class="btn btn-outline" id="btn-nova-identificacao" aria-label="Voltar ao início">Voltar ao início</button>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- RODAPÉ -->
+    <footer class="site-footer" role="contentinfo">
+      <div class="container footer-inner">
+        <p class="footer-copy">
+          &copy; <span id="footer-ano"></span> Capitania Fluvial de Tabatinga &mdash; Marinha do Brasil
+          <br/><small>Sistema para uso interno. Dados armazenados localmente no dispositivo.</small>
+        </p>
+        <button id="btn-area-restrita" class="btn-restrita" aria-label="Acesso à área restrita administrativa">🔒 Área Restrita</button>
+      </div>
+    </footer>
+  </div><!-- /#app -->
+
+  <!-- ============================================================
+       MODAL: AUTENTICAÇÃO POR NIP
+  ============================================================ -->
+  <div id="modal-nip" class="modal-overlay" role="dialog" aria-modal="true"
+       aria-labelledby="modal-nip-title" style="display:none;">
+    <div class="modal-box modal-box-sm">
+      <div class="modal-header">
+        <h3 id="modal-nip-title" class="modal-title">🔐 Autenticação do Voto</h3>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Para confirmar sua identidade antes de registrar o voto, digite seu <strong>NIP</strong> (Número de Identificação Pessoal) no formato oficial: <code style="font-size:0.9em;font-family:monospace;background:#f1f5f9;padding:2px 6px;border-radius:4px;">XX.XXXX.XX</code></p>
+        <div class="oficial-nip-info" id="nip-oficial-resumo">
+          <!-- preenchido via JS -->
+        </div>
+        <div class="form-group" style="margin-top:1rem;">
+          <label for="input-nip-votacao" class="form-label">Seu NIP <span class="required">*</span></label>
+          <div class="input-password-wrapper">
+            <input type="text" id="input-nip-votacao" class="form-input"
+              placeholder="Ex: 14.2305.52"
+              autocomplete="off" aria-required="true"
+              inputmode="numeric"
+              maxlength="11"
+              spellcheck="false" />
+            <button type="button" class="btn-toggle-pass" id="btn-toggle-nip" aria-label="Mostrar/ocultar NIP">👁</button>
+          </div>
+          <small style="color:var(--text-muted,#6B7280);font-size:0.75rem;margin-top:0.3rem;display:block;">
+            Digite apenas os dígitos — a formatação é aplicada automaticamente.
+            O botão “Verificar” será habilitado após o dígito verificador (Módulo&nbsp;11) ser confirmado.
+          </small>
+        </div>
+        <div id="erro-nip" class="alert alert-danger" style="display:none;" role="alert">
+          <span>🚫</span> NIP incorreto. Tente novamente.
+        </div>
+        <div id="tentativas-nip" class="alert alert-warning" style="display:none;" role="alert">
+          <span>⚠️</span> <span id="tentativas-nip-texto"></span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancelar-nip" class="btn btn-outline">Cancelar</button>
+        <button id="btn-confirmar-nip" class="btn btn-primary" disabled
+          title="O NIP será validado pelo Módulo 11 automaticamente">Verificar NIP →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIRMAR VOTO -->
+  <div id="modal-confirmacao" class="modal-overlay" role="dialog" aria-modal="true"
+       aria-labelledby="modal-confirm-title" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-confirm-title" class="modal-title">Confirmar Voto</h3>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Você está prestes a registrar seu voto. <strong>Esta ação é irreversível.</strong></p>
+        <div class="voto-resumo">
+          <div class="voto-resumo-item">
+            <span class="voto-resumo-label">⚓ SO / SG</span>
+            <span class="voto-resumo-valor" id="confirm-candidato-so">—</span>
+          </div>
+          <div class="voto-resumo-item">
+            <span class="voto-resumo-label">🚢 CB / MN</span>
+            <span class="voto-resumo-valor" id="confirm-candidato-cb">—</span>
+          </div>
+        </div>
+        <p class="modal-aviso">Confirma seu voto?</p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-modal-nao" class="btn btn-outline">NÃO</button>
+        <button id="btn-modal-sim" class="btn btn-success">SIM, CONFIRMAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SENHA ADMINISTRATIVA -->
+  <div id="modal-senha" class="modal-overlay" role="dialog" aria-modal="true"
+       aria-labelledby="modal-senha-title" style="display:none;">
+    <div class="modal-box modal-box-sm">
+      <div class="modal-header">
+        <h3 id="modal-senha-title" class="modal-title">🔐 Área Restrita – ComSoc</h3>
+        <button class="modal-close" id="btn-fechar-modal-senha" aria-label="Fechar modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Digite a senha de administrador para acessar o painel.</p>
+        <div class="form-group">
+          <label for="input-senha-admin" class="form-label">Senha</label>
+          <div class="input-password-wrapper">
+            <input type="password" id="input-senha-admin" class="form-input" placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" class="btn-toggle-pass" id="btn-toggle-pass" aria-label="Mostrar/ocultar senha">👁</button>
+          </div>
+        </div>
+        <div id="erro-senha" class="alert alert-danger" style="display:none;" role="alert">
+          <span>🚫</span> Acesso Negado. Senha incorreta.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancelar-senha" class="btn btn-outline">Cancelar</button>
+        <button id="btn-entrar-admin" class="btn btn-primary">Entrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PAINEL ADMINISTRATIVO (DASHBOARD COMSOC)
+  ============================================================ -->
+  <div id="painel-admin" class="painel-admin" style="display:none;" role="main" aria-label="Painel Administrativo ComSoc">
+    <div class="admin-header">
+      <div class="container admin-header-inner">
+        <div class="admin-header-title">
+          <svg class="admin-logo" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="20" cy="20" r="19" fill="#003366" stroke="#C9A227" stroke-width="2"/>
+            <polygon points="20,8 23,17 33,17 25,23 28,32 20,26 12,32 15,23 7,17 17,17" fill="#C9A227"/>
+          </svg>
+          <div>
+            <h2 class="admin-title">Dashboard ComSoc</h2>
+            <p class="admin-subtitle">Painel de Controle &amp; Apuração &mdash; CFT</p>
+          </div>
+        </div>
+        <div class="admin-header-actions" style="display: flex; align-items: center; gap: 8px;">
+          <span id="admin-clock" class="admin-clock" aria-live="polite"></span>
+          <button id="btn-ajuda-admin" class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 6px; border-color: var(--navy-300);">❓ Ajuda</button>
+          <button id="btn-fechar-admin" class="btn btn-outline btn-sm">✕ Sair</button>
+        </div>
+      </div>
+      <nav class="admin-tabs" role="tablist">
+        <button class="admin-tab active" data-tab="overview"           role="tab" aria-selected="true"  id="tab-overview">📊 Visão Geral</button>
+        <button class="admin-tab"        data-tab="gestao-eventos"     role="tab" aria-selected="false" id="tab-gestao-eventos">📅 Eventos de Votação</button>
+        <button class="admin-tab"        data-tab="apuracao"           role="tab" aria-selected="false" id="tab-apuracao">🗳 Apuração</button>
+        <button class="admin-tab"        data-tab="gestao-oficiais"    role="tab" aria-selected="false" id="tab-gestao-oficiais">👥 Oficiais</button>
+        <button class="admin-tab"        data-tab="gestao-candidatos"  role="tab" aria-selected="false" id="tab-gestao-candidatos">🎖 Candidatos</button>
+        <button class="admin-tab"        data-tab="exportacao"         role="tab" aria-selected="false" id="tab-exportacao">📤 Exportação / Importação</button>
+        <button class="admin-tab"        data-tab="configuracoes"      role="tab" aria-selected="false" id="tab-configuracoes">⚙ Configurações</button>
+      </nav>
+    </div>
+
+    <div class="admin-body container">
+
+      <!-- ABA: VISÃO GERAL -->
+      <div id="tab-content-overview" class="tab-content active" role="tabpanel">
+        <div class="kpi-grid">
+          <div class="kpi-card kpi-blue">
+            <div class="kpi-icon">👥</div>
+            <div class="kpi-info"><span class="kpi-label">Total de Oficiais</span><span class="kpi-value" id="kpi-total-eleitores">0</span></div>
+          </div>
+          <div class="kpi-card kpi-green">
+            <div class="kpi-icon">✅</div>
+            <div class="kpi-info"><span class="kpi-label">Votos Registrados</span><span class="kpi-value" id="kpi-votos-registrados">0</span></div>
+          </div>
+          <div class="kpi-card kpi-orange">
+            <div class="kpi-icon">⏳</div>
+            <div class="kpi-info"><span class="kpi-label">Pendentes</span><span class="kpi-value" id="kpi-pendentes">0</span></div>
+          </div>
+          <div class="kpi-card kpi-purple">
+            <div class="kpi-icon">📈</div>
+            <div class="kpi-info"><span class="kpi-label">Participação</span><span class="kpi-value" id="kpi-participacao">0%</span></div>
+          </div>
+        </div>
+        <div class="admin-card">
+          <h3 class="admin-card-title">Progresso da Eleição</h3>
+          <div class="progress-bar-track large" id="admin-progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+            <div id="admin-progress-fill" class="progress-bar-fill animated"></div>
+          </div>
+          <div class="progress-labels">
+            <span id="admin-progress-pct">0%</span>
+            <span id="admin-progress-count">0 de 0 oficiais</span>
+          </div>
+        </div>
+        <div class="admin-two-col">
+          <div class="admin-card">
+            <h3 class="admin-card-title">✅ Já Votaram</h3>
+            <ul id="lista-votaram" class="eleitor-list" aria-label="Oficiais que já votaram"></ul>
+          </div>
+          <div class="admin-card">
+            <h3 class="admin-card-title">⏳ Aguardando Voto</h3>
+            <ul id="lista-nao-votaram" class="eleitor-list" aria-label="Oficiais que ainda não votaram"></ul>
+          </div>
+        </div>
+        <div class="admin-card">
+          <h3 class="admin-card-title">🕐 Última Votação Registrada</h3>
+          <div id="ultimo-voto" class="ultimo-voto">Nenhum voto registrado ainda.</div>
+        </div>
+        <div class="alert alert-info" role="note">
+          <span class="alert-icon">ℹ️</span>
+          <div>
+            <strong>Aviso de Segurança (LGPD)</strong>
+            <p>Os dados estão armazenados no LocalStorage do navegador. Para uso oficial, recomenda-se migração para um backend com autenticação real, criptografia e banco de dados (Firebase, Supabase, PostgreSQL).</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: GESTÃO DE EVENTOS -->
+      <div id="tab-content-gestao-eventos" class="tab-content" role="tabpanel" style="display:none;">
+        <div class="admin-toolbar">
+          <h3 class="tab-section-title">📅 Gerenciar Eventos de Votação</h3>
+          <button class="btn btn-primary btn-sm" id="btn-novo-evento">+ Adicionar Evento</button>
+        </div>
+        <div id="form-evento-wrap" class="admin-card form-card" style="display:none;">
+          <h4 class="admin-card-title" id="form-evento-titulo">Nova Votação</h4>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Nome da Votação <span class="required">*</span></label>
+              <input type="text" id="evt-nome" class="form-input" placeholder="Ex: Militar Padrão - 1º Semestre 2026" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo de Votação <span class="required">*</span></label>
+              <div class="select-wrapper">
+                <select id="evt-tipo" class="form-select">
+                  <option value="militar_padrao">Militar Padrão</option>
+                  <option value="inspetor_padrao">Inspetor Padrão</option>
+                  <option value="outro">Outra Votação</option>
+                </select>
+                <span class="select-arrow" aria-hidden="true">▼</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data da Votação <span class="required">*</span></label>
+              <input type="date" id="evt-data" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status Inicial <span class="required">*</span></label>
+              <div class="select-wrapper">
+                <select id="evt-status" class="form-select">
+                  <option value="rascunho">Rascunho</option>
+                  <option value="ativo">Ativo (Em Andamento)</option>
+                  <option value="encerrado">Encerrado</option>
+                </select>
+                <span class="select-arrow" aria-hidden="true">▼</span>
+              </div>
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label class="form-label">Descrição / Observações</label>
+              <textarea id="evt-descricao" class="form-input" placeholder="Breve resumo sobre o evento de votação..." rows="2" style="font-family: inherit; resize: vertical; padding: 10px;"></textarea>
+            </div>
+          </div>
+          <input type="hidden" id="evt-id-editando" value="" />
+          <div class="form-actions">
+            <button class="btn btn-outline btn-sm" id="btn-cancelar-evento">Cancelar</button>
+            <button class="btn btn-primary btn-sm" id="btn-salvar-evento">Salvar</button>
+          </div>
+        </div>
+        <div class="admin-card overflow-x">
+          <table class="apuracao-table" aria-label="Lista de eventos de votação">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nome da Votação</th>
+                <th>Tipo</th>
+                <th>Data</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-eventos"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA: APURAÇÃO -->
+      <div id="tab-content-apuracao" class="tab-content" role="tabpanel" style="display:none;">
+        <h3 class="tab-section-title">⚓ Apuração – Suboficiais e Sargentos (SO/SG)</h3>
+        <div class="admin-card overflow-x">
+          <table class="apuracao-table" aria-label="Apuração SO/SG">
+            <thead><tr><th>Rank</th><th>Nome</th><th>Posto</th><th>Especialidade</th><th>Votos</th><th>%</th><th>Barra</th></tr></thead>
+            <tbody id="tbody-so"></tbody>
+          </table>
+        </div>
+        <div class="admin-two-col chart-wrap">
+          <div class="admin-card"><h4 class="admin-card-title">Gráfico de Barras – SO/SG</h4><canvas id="chart-bar-so" aria-label="Gráfico de barras SO/SG" role="img"></canvas></div>
+          <div class="admin-card"><h4 class="admin-card-title">Gráfico de Pizza – SO/SG</h4><canvas id="chart-pie-so" aria-label="Gráfico de pizza SO/SG" role="img"></canvas></div>
+        </div>
+        <h3 class="tab-section-title" style="margin-top:2rem;">🚢 Apuração – Cabos e Marinheiros (CB/MN)</h3>
+        <div class="admin-card overflow-x">
+          <table class="apuracao-table" aria-label="Apuração CB/MN">
+            <thead><tr><th>Rank</th><th>Nome</th><th>Posto</th><th>Especialidade</th><th>Votos</th><th>%</th><th>Barra</th></tr></thead>
+            <tbody id="tbody-cb"></tbody>
+          </table>
+        </div>
+        <div class="admin-two-col chart-wrap">
+          <div class="admin-card"><h4 class="admin-card-title">Gráfico de Barras – CB/MN</h4><canvas id="chart-bar-cb" aria-label="Gráfico de barras CB/MN" role="img"></canvas></div>
+          <div class="admin-card"><h4 class="admin-card-title">Gráfico de Pizza – CB/MN</h4><canvas id="chart-pie-cb" aria-label="Gráfico de pizza CB/MN" role="img"></canvas></div>
+        </div>
+        <div class="section-actions" style="margin-top:1.5rem;">
+          <button class="btn btn-outline" id="btn-print-apuracao">🖨️ Imprimir Apuração</button>
+          <button class="btn btn-primary" id="btn-atualizar-apuracao">🔄 Atualizar</button>
+        </div>
+      </div>
+
+      <!-- ABA: GESTÃO DE OFICIAIS -->
+      <div id="tab-content-gestao-oficiais" class="tab-content" role="tabpanel" style="display:none;">
+        <div class="admin-toolbar">
+          <h3 class="tab-section-title">👥 Gerenciar Oficiais (Votantes)</h3>
+          <button class="btn btn-primary btn-sm" id="btn-novo-oficial">+ Adicionar Oficial</button>
+        </div>
+        <div id="form-oficial-wrap" class="admin-card form-card" style="display:none;">
+          <h4 class="admin-card-title" id="form-oficial-titulo">Novo Oficial</h4>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Nome Completo <span class="required">*</span></label>
+              <input type="text" id="el-nomeCompleto" class="form-input" placeholder="Nome completo" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Posto <span class="required">*</span></label>
+              <input type="text" id="el-posto" class="form-input" placeholder="Ex: CF, CC (AA), 1º Ten" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Especialidade</label>
+              <input type="text" id="el-especialidade" class="form-input" placeholder="Ex: IN, IM, AA" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">NIP <span class="required">*</span></label>
+              <input type="text" id="el-nip" class="form-input" placeholder="Número de identificação (usado para autenticar o voto)" />
+            </div>
+          </div>
+          <input type="hidden" id="el-id-editando" value="" />
+          <div class="form-actions">
+            <button class="btn btn-outline btn-sm" id="btn-cancelar-oficial">Cancelar</button>
+            <button class="btn btn-primary btn-sm" id="btn-salvar-oficial">Salvar</button>
+          </div>
+        </div>
+        <div class="admin-card overflow-x">
+          <table class="apuracao-table" aria-label="Lista de oficiais">
+            <thead><tr><th>#</th><th>Nome Completo</th><th>Posto</th><th>Especialidade</th><th>NIP</th><th>Votou?</th><th>Ações</th></tr></thead>
+            <tbody id="tbody-oficiais"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA: GESTÃO DE CANDIDATOS -->
+      <div id="tab-content-gestao-candidatos" class="tab-content" role="tabpanel" style="display:none;">
+        <div class="sub-tabs">
+          <button class="sub-tab active" data-subtab="cand-so" id="subtab-so">⚓ SO / SG</button>
+          <button class="sub-tab" data-subtab="cand-cb" id="subtab-cb">🚢 CB / MN</button>
+        </div>
+
+        <!-- Painel SO -->
+        <div id="subtab-content-cand-so" class="sub-tab-content active">
+          <div class="admin-toolbar" style="margin-top:1rem;">
+            <h3 class="tab-section-title">Suboficiais e Sargentos</h3>
+            <button class="btn btn-primary btn-sm" id="btn-novo-cand-so">+ Adicionar</button>
+          </div>
+          <div id="form-cand-so-wrap" class="admin-card form-card" style="display:none;">
+            <h4 class="admin-card-title" id="form-cand-so-titulo">Novo Candidato SO/SG</h4>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Nome <span class="required">*</span></label>
+                <input type="text" id="so-nome" class="form-input" placeholder="Nome completo" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Posto <span class="required">*</span></label>
+                <input type="text" id="so-posto" class="form-input" placeholder="Ex: SO, 1ºSG, 2ºSG" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Especialidade</label>
+                <input type="text" id="so-especialidade" class="form-input" placeholder="Ex: QT-MF, QT-CB" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">NIP</label>
+                <input type="text" id="so-nip" class="form-input" placeholder="NIP" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Número na Cédula <span class="required">*</span></label>
+                <input type="number" id="so-numero" class="form-input" placeholder="Ex: 01" min="1" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Foto do Candidato</label>
+                <div class="foto-upload-wrap">
+                  <div class="foto-preview" id="so-foto-preview">
+                    <span class="foto-preview-placeholder">📷</span>
+                  </div>
+                  <div class="foto-upload-actions">
+                    <label for="so-foto-input" class="btn btn-outline btn-sm" style="cursor:pointer;">📁 Selecionar Foto</label>
+                    <input type="file" id="so-foto-input" accept="image/*" style="display:none;" aria-label="Selecionar foto do candidato SO/SG" />
+                    <button type="button" class="btn btn-sm" id="so-foto-remover" style="display:none; background:var(--danger-bg); color:var(--danger); border:1px solid var(--danger);">✕ Remover</button>
+                  </div>
+                </div>
+                <input type="hidden" id="so-foto" value="" />
+              </div>
+            </div>
+            <input type="hidden" id="so-id-editando" value="" />
+            <div class="form-actions">
+              <button class="btn btn-outline btn-sm" id="btn-cancelar-cand-so">Cancelar</button>
+              <button class="btn btn-primary btn-sm" id="btn-salvar-cand-so">Salvar</button>
+            </div>
+          </div>
+          <div class="admin-card overflow-x">
+            <table class="apuracao-table">
+              <thead><tr><th>#</th><th>Foto</th><th>Nº</th><th>Nome</th><th>Posto</th><th>Especialidade</th><th>NIP</th><th>Ações</th></tr></thead>
+              <tbody id="tbody-cand-so"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Painel CB -->
+        <div id="subtab-content-cand-cb" class="sub-tab-content" style="display:none;">
+          <div class="admin-toolbar" style="margin-top:1rem;">
+            <h3 class="tab-section-title">Cabos e Marinheiros</h3>
+            <button class="btn btn-primary btn-sm" id="btn-novo-cand-cb">+ Adicionar</button>
+          </div>
+          <div id="form-cand-cb-wrap" class="admin-card form-card" style="display:none;">
+            <h4 class="admin-card-title" id="form-cand-cb-titulo">Novo Candidato CB/MN</h4>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label">Nome <span class="required">*</span></label>
+                <input type="text" id="cb-nome" class="form-input" placeholder="Nome completo" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Posto <span class="required">*</span></label>
+                <input type="text" id="cb-posto" class="form-input" placeholder="Ex: CB, MN" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Especialidade</label>
+                <input type="text" id="cb-especialidade" class="form-input" placeholder="Ex: QT-MF, QT-CB" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">NIP</label>
+                <input type="text" id="cb-nip" class="form-input" placeholder="NIP" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Número na Cédula <span class="required">*</span></label>
+                <input type="number" id="cb-numero" class="form-input" placeholder="Ex: 01" min="1" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Foto do Candidato</label>
+                <div class="foto-upload-wrap">
+                  <div class="foto-preview" id="cb-foto-preview">
+                    <span class="foto-preview-placeholder">📷</span>
+                  </div>
+                  <div class="foto-upload-actions">
+                    <label for="cb-foto-input" class="btn btn-outline btn-sm" style="cursor:pointer;">📁 Selecionar Foto</label>
+                    <input type="file" id="cb-foto-input" accept="image/*" style="display:none;" aria-label="Selecionar foto do candidato CB/MN" />
+                    <button type="button" class="btn btn-sm" id="cb-foto-remover" style="display:none; background:var(--danger-bg); color:var(--danger); border:1px solid var(--danger);">✕ Remover</button>
+                  </div>
+                </div>
+                <input type="hidden" id="cb-foto" value="" />
+              </div>
+            </div>
+            <input type="hidden" id="cb-id-editando" value="" />
+            <div class="form-actions">
+              <button class="btn btn-outline btn-sm" id="btn-cancelar-cand-cb">Cancelar</button>
+              <button class="btn btn-primary btn-sm" id="btn-salvar-cand-cb">Salvar</button>
+            </div>
+          </div>
+          <div class="admin-card overflow-x">
+            <table class="apuracao-table">
+              <thead><tr><th>#</th><th>Foto</th><th>Nº</th><th>Nome</th><th>Posto</th><th>Especialidade</th><th>NIP</th><th>Ações</th></tr></thead>
+              <tbody id="tbody-cand-cb"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: EXPORTAÇÃO / IMPORTAÇÃO -->
+      <div id="tab-content-exportacao" class="tab-content" role="tabpanel" style="display:none;">
+
+        <!-- EXPORTAÇÃO -->
+        <h3 class="tab-section-title">📤 Exportar Dados</h3>
+        <div class="export-grid">
+          <div class="admin-card export-card">
+            <div class="export-icon">📄</div>
+            <h4>CSV</h4>
+            <p>Planilha compatível com Excel e LibreOffice</p>
+            <button class="btn btn-primary btn-sm" id="btn-export-csv">Exportar CSV</button>
+          </div>
+          <div class="admin-card export-card">
+            <div class="export-icon">📊</div>
+            <h4>Excel (.xlsx)</h4>
+            <p>Relatório completo em formato Excel</p>
+            <button class="btn btn-success btn-sm" id="btn-export-xlsx">Exportar Excel</button>
+          </div>
+          <div class="admin-card export-card">
+            <div class="export-icon">🖨️</div>
+            <h4>PDF</h4>
+            <p>Relatório para impressão e arquivo</p>
+            <button class="btn btn-danger btn-sm" id="btn-export-pdf">Exportar PDF</button>
+          </div>
+          <div class="admin-card export-card">
+            <div class="export-icon">🗃️</div>
+            <h4>JSON</h4>
+            <p>Backup completo de todos os dados</p>
+            <button class="btn btn-outline btn-sm" id="btn-export-json">Exportar JSON</button>
+          </div>
+        </div>
+
+        <!-- IMPORTAÇÃO -->
+        <h3 class="tab-section-title" style="margin-top:2rem;">📥 Importar Dados</h3>
+
+        <!-- Import Oficiais -->
+        <div class="admin-card">
+          <h4 class="admin-card-title">👥 Importar Lista de Oficiais (Votantes)</h4>
+          <p class="modal-desc">Faça upload de um arquivo CSV com a lista de oficiais. O sistema processará e exibirá um preview antes de confirmar.</p>
+          <div class="import-formato">
+            <strong>Formato esperado (com cabeçalho):</strong>
+            <code class="import-code">nomeCompleto,posto,especialidade,nip</code>
+            <a href="#" id="btn-download-template-oficiais" class="btn btn-outline btn-sm">⬇ Baixar Modelo CSV</a>
+          </div>
+          <div class="form-group" style="margin-top:1rem;">
+            <label for="import-csv-oficiais" class="form-label">Arquivo CSV de Oficiais</label>
+            <input type="file" id="import-csv-oficiais" accept=".csv,.txt" class="form-input" aria-label="Arquivo CSV de oficiais" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Modo de importação</label>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="modo-import-oficiais" value="adicionar" checked /> Adicionar aos existentes</label>
+              <label class="radio-label"><input type="radio" name="modo-import-oficiais" value="substituir" /> Substituir lista completa</label>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-preview-oficiais">🔍 Processar e Visualizar</button>
+
+          <!-- Preview oficiais -->
+          <div id="preview-oficiais" class="import-preview" style="display:none;">
+            <h5 class="import-preview-title">Preview da importação (<span id="preview-oficiais-count">0</span> registros)</h5>
+            <div class="overflow-x">
+              <table class="apuracao-table" id="tabela-preview-oficiais">
+                <thead><tr><th>#</th><th>Nome Completo</th><th>Posto</th><th>Especialidade</th><th>NIP</th><th>Status</th></tr></thead>
+                <tbody id="tbody-preview-oficiais"></tbody>
+              </table>
+            </div>
+            <div class="form-actions" style="margin-top:1rem;">
+              <button class="btn btn-outline btn-sm" id="btn-cancelar-import-oficiais">Cancelar</button>
+              <button class="btn btn-primary btn-sm" id="btn-confirmar-import-oficiais">✅ Confirmar Importação</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Import Candidatos -->
+        <div class="admin-card">
+          <h4 class="admin-card-title">🎖 Importar Lista de Praças (Candidatos SO/SG e CB/MN)</h4>
+          <p class="modal-desc">Faça upload de um arquivo CSV com a lista de candidatos. A coluna <code>grupo</code> deve ser <code>SO</code> (Suboficiais/Sargentos) ou <code>CB</code> (Cabos/Marinheiros).</p>
+          <div class="import-formato">
+            <strong>Formato esperado (com cabeçalho):</strong>
+            <code class="import-code">nome,posto,especialidade,nip,numero,grupo</code>
+            <a href="#" id="btn-download-template-candidatos" class="btn btn-outline btn-sm">⬇ Baixar Modelo CSV</a>
+          </div>
+          <div class="form-group" style="margin-top:1rem;">
+            <label for="import-csv-candidatos" class="form-label">Arquivo CSV de Candidatos</label>
+            <input type="file" id="import-csv-candidatos" accept=".csv,.txt" class="form-input" aria-label="Arquivo CSV de candidatos" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Modo de importação</label>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="modo-import-candidatos" value="adicionar" checked /> Adicionar aos existentes</label>
+              <label class="radio-label"><input type="radio" name="modo-import-candidatos" value="substituir" /> Substituir lista completa</label>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-preview-candidatos">🔍 Processar e Visualizar</button>
+
+          <!-- Preview candidatos -->
+          <div id="preview-candidatos" class="import-preview" style="display:none;">
+            <h5 class="import-preview-title">Preview da importação (<span id="preview-candidatos-count">0</span> registros)</h5>
+            <div class="overflow-x">
+              <table class="apuracao-table" id="tabela-preview-candidatos">
+                <thead><tr><th>#</th><th>Nome</th><th>Posto</th><th>Especialidade</th><th>NIP</th><th>Nº</th><th>Grupo</th><th>Status</th></tr></thead>
+                <tbody id="tbody-preview-candidatos"></tbody>
+              </table>
+            </div>
+            <div class="form-actions" style="margin-top:1rem;">
+              <button class="btn btn-outline btn-sm" id="btn-cancelar-import-candidatos">Cancelar</button>
+              <button class="btn btn-primary btn-sm" id="btn-confirmar-import-candidatos">✅ Confirmar Importação</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Restaurar JSON -->
+        <div class="admin-card">
+          <h4 class="admin-card-title">📥 Restaurar Backup (JSON)</h4>
+          <p class="modal-desc">Carregue um arquivo de backup JSON para restaurar os dados. <strong>Atenção: sobrescreverá todos os dados atuais.</strong></p>
+          <div class="form-group">
+            <input type="file" id="input-restaurar" accept=".json" class="form-input" aria-label="Arquivo de backup JSON" />
+          </div>
+          <button class="btn btn-warning btn-sm" id="btn-restaurar">📥 Restaurar Dados</button>
+        </div>
+      </div>
+
+      <!-- ABA: CONFIGURAÇÕES -->
+      <div id="tab-content-configuracoes" class="tab-content" role="tabpanel" style="display:none;">
+        <h3 class="tab-section-title">⚙ Configurações do Sistema</h3>
+        <div class="admin-card">
+          <h4 class="admin-card-title">Informações da Eleição</h4>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Nome da Eleição</label>
+              <input type="text" id="config-nome-eleicao" class="form-input" placeholder="Ex: Militar Padrão 1º Semestre 2026" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Período</label>
+              <input type="text" id="config-periodo" class="form-input" placeholder="Ex: 1º Semestre 2026" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data da Eleição</label>
+              <input type="date" id="config-data-eleicao" class="form-input" />
+            </div>
+          </div>
+          <p style="font-size:0.82rem;color:var(--text-muted,#94a3b8);margin:0.5rem 0 1rem;">⚠️ Ao salvar, a eleição atual será registrada no histórico de resultados e ficará disponível para consulta pública.</p>
+          <button class="btn btn-primary btn-sm" id="btn-salvar-config">💾 Salvar e Registrar no Histórico</button>
+        </div>
+        <div class="admin-card">
+          <h4 class="admin-card-title">📋 Histórico de Eleições Registradas</h4>
+          <div class="overflow-x">
+            <table class="apuracao-table" aria-label="Histórico de eleições">
+              <thead><tr><th>#</th><th>Nome</th><th>Período</th><th>Data</th><th>SO/SG Vencedor</th><th>CB/MN Vencedor</th><th>Votos</th><th>Ações</th></tr></thead>
+              <tbody id="tbody-historico-eleicoes"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="admin-card">
+          <h4 class="admin-card-title">🔑 Alterar Senha Administrativa</h4>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">Senha Atual</label>
+              <input type="password" id="config-senha-atual" class="form-input" placeholder="Senha atual" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nova Senha</label>
+              <input type="password" id="config-senha-nova" class="form-input" placeholder="Nova senha" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirmar Nova Senha</label>
+              <input type="password" id="config-senha-confirmar" class="form-input" placeholder="Confirmar nova senha" />
+            </div>
+          </div>
+          <button class="btn btn-warning btn-sm" id="btn-alterar-senha">Alterar Senha</button>
+        </div>
+        <div class="admin-card" style="border-left: 4px solid var(--primary-color);">
+          <h4 class="admin-card-title">⚓ Modelos & Demonstração (CFT)</h4>
+          <p class="modal-desc">Carregue rapidamente a lista de oficiais e candidatos de demonstração da Capitania Fluvial de Tabatinga (CFT) para testes.</p>
+          <button class="btn btn-primary btn-sm" id="btn-carregar-demo">⚓ Carregar Dados de Demonstração (CFT)</button>
+        </div>
+
+        <div class="admin-card danger-zone">
+          <h4 class="admin-card-title danger-title">⚠️ Zona de Perigo</h4>
+          <p class="modal-desc">Estas ações são irreversíveis. Utilize com extrema cautela.</p>
+          <div class="form-actions">
+            <button class="btn btn-danger" id="btn-reiniciar-votacao">🔄 Reinicializar Votação</button>
+            <button class="btn btn-danger" id="btn-limpar-tudo">🗑️ Limpar Todos os Dados</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /admin-body -->
+  </div><!-- /#painel-admin -->
+
+  <!-- MODAL: INSTRUÇÕES DE AJUDA -->
+  <div id="modal-ajuda" class="modal-overlay" role="dialog" aria-modal="true" style="display:none; z-index: 9999;">
+    <div class="modal-box" style="max-width: 700px; padding: 2rem; max-height: 85vh; overflow-y: auto;">
+      <div class="modal-header" style="border-bottom: 2px solid var(--navy-500); padding-bottom: var(--space-3); margin-bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="modal-title" style="font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
+          <span>❓</span> Guia de Utilização do Sistema (SEV-CFT)
+        </h3>
+        <button id="btn-fechar-ajuda" class="btn-icon" style="font-size: 1.2rem; cursor: pointer; background: transparent; border: none; color: var(--text-secondary);" title="Fechar">&times;</button>
+      </div>
+      <div class="modal-body" style="color: var(--text-primary); line-height: 1.6; font-size: 0.9rem;">
+        
+        <section style="margin-bottom: 1.5rem;">
+          <h4 style="color: var(--navy-700); font-weight: 700; margin-bottom: 0.5rem; border-left: 3px solid var(--navy-500); padding-left: 8px; font-size: 0.95rem;">🗳️ Como Votar (Para Eleitores)</h4>
+          <ol style="margin-left: 1.25rem; display: flex; flex-direction: column; gap: 8px; padding-left: 0;">
+            <li><strong>Identificação:</strong> Na tela inicial, selecione o seu nome no menu suspenso.</li>
+            <li><strong>Verificação de Segurança:</strong> Digite seu NIP de 8 dígitos (ex: <code>12.3456.79</code>). O sistema valida a autenticidade através do Módulo 11.</li>
+            <li><strong>Cédula Eleitoral - Grupo 1 (SO/SG):</strong> Na cabine de votação, escolha um candidato de Suboficial ou Sargento e clique em <em>Avançar</em>.</li>
+            <li><strong>Cédula Eleitoral - Grupo 2 (CB/MN):</strong> Escolha um candidato de Cabo ou Marinheiro e clique em <em>Avançar</em>.</li>
+            <li><strong>Confirmação Final:</strong> Revise suas escolhas na cédula resumida e clique em <em>Confirmar Voto</em>. Pronto, seu voto foi registrado de forma 100% segura e confidencial!</li>
+          </ol>
+        </section>
+
+        <section id="ajuda-secao-comsoc" style="margin-bottom: 1.5rem;">
+          <h4 style="color: var(--navy-700); font-weight: 700; margin-bottom: 0.5rem; border-left: 3px solid var(--navy-500); padding-left: 8px; font-size: 0.95rem;">⚓ Painel Administrativo (Para o ComSoc)</h4>
+          <p style="margin-bottom: 8px;">Acesse a <strong>Área Restrita - ComSoc</strong> no rodapé da página inicial (Senha padrão: <code>ComSoc123</code>) para gerenciar:</p>
+          <ul style="margin-left: 1.25rem; display: flex; flex-direction: column; gap: 6px; list-style-type: disc; padding-left: 0;">
+            <li><strong>Eventos de Votação:</strong> Adicione novas eleições (ex: "Militar Padrão 1º Semestre 2026"). Um evento deve ter status <em>Ativo</em> para que os eleitores possam votar na tela pública.</li>
+            <li><strong>Oficiais e Candidatos:</strong> Cadastre novos votantes e candidatos manualmente ou importe uma planilha em massa utilizando arquivos CSV.</li>
+            <li><strong>Configurações & Histórico:</strong> Salve as informações do evento atual (incluindo o Período) para arquivá-lo no histórico público permanente da Capitania.</li>
+          </ul>
+        </section>
+
+        <section style="margin-bottom: 1.5rem;">
+          <h4 style="color: var(--navy-700); font-weight: 700; margin-bottom: 0.5rem; border-left: 3px solid var(--navy-500); padding-left: 8px; font-size: 0.95rem;">🏆 Encerramento & Resultados</h4>
+          <ul style="margin-left: 1.25rem; display: flex; flex-direction: column; gap: 6px; list-style-type: disc; padding-left: 0;">
+            <li><strong>Auto-encerramento:</strong> O sistema detecta automaticamente quando todos os oficiais cadastrados realizaram o voto, mudando o status da votação para encerrado de forma instantânea.</li>
+            <li><strong>Exibição Pública:</strong> Assim que a votação encerra, a tela pública oculta os seletores de voto e passa a expor o gráfico e tabelas da apuração final para livre consulta.</li>
+            <li><strong>Eleições Anteriores:</strong> Oficiais e visitantes podem consultar o ranking e vencedores de processos eleitorais anteriores clicando na barra <em>Resultados de Eleições Anteriores</em> no rodapé da página pública.</li>
+          </ul>
+        </section>
+
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid var(--border-color); padding-top: var(--space-3); text-align: right; margin-top: var(--space-4);">
+        <button id="btn-entendido-ajuda" class="btn btn-primary btn-sm" style="cursor: pointer; padding: 8px 18px;">Entendi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIRMAÇÃO GENÉRICA -->
+  <div id="modal-generico" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;">
+    <div class="modal-box modal-box-sm">
+      <div class="modal-header">
+        <h3 id="modal-generico-title" class="modal-title">Confirmar Ação</h3>
+      </div>
+      <div class="modal-body">
+        <p id="modal-generico-msg" class="modal-desc"></p>
+        <div id="modal-generico-senha-wrap" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Senha de confirmação</label>
+            <input type="password" id="modal-generico-senha" class="form-input" placeholder="••••••••" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-modal-generico-cancelar" class="btn btn-outline">Cancelar</button>
+        <button id="btn-modal-generico-confirmar" class="btn btn-danger">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTAINER DE TOASTS -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false" role="status"></div>
+
+  <!-- SUPABASE CLIENT JS LIBRARY -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="votacao.js"></script>
+</body>
+</html>

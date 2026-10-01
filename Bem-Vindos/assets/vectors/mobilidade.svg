@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-icon-mobilidade">
+  <!-- Mapa Dobrável -->
+  <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" />
+  <path d="M9 3v15M15 6v15" />
+  <!-- Bússola/Direcionador no centro -->
+  <circle cx="12" cy="12" r="3" fill="rgba(214, 175, 55, 0.2)" />
+  <path d="M12 9l1.5 3-1.5 3-1.5-3z" stroke="currentColor" fill="currentColor" />
+</svg>

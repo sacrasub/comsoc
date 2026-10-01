@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-icon-lazer">
+  <!-- Pôr do sol no rio (Comara) -->
+  <!-- Céu/Sol -->
+  <path d="M12 2a5 5 0 0 1 5 5c0 2-1 4-3 5h-4C8 11 7 9 7 7a5 5 0 0 1 5-5z" fill="rgba(214, 175, 55, 0.2)" />
+  <!-- Raios de Sol -->
+  <path d="M12 2v2M4.9 4.9l1.4 1.4M19.1 4.9l-1.4 1.4" />
+  <!-- Rio / Ondas -->
+  <path d="M2 14c4-2 6 2 10 0s6-2 10 0" />
+  <path d="M2 18c4-2 6 2 10 0s6-2 10 0" />
+  <path d="M2 22c4-2 6 2 10 0s6-2 10 0" />
+  <!-- Palmeira/Árvore na margem -->
+  <path d="M3 22c1-3 3-5 5-6M8 12c-2 2-3 4-3 4m3-4c0-3-2-4-2-4m2 4c2-1 3-3 3-3" />
+</svg>

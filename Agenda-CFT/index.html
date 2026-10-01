@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda CFT-01 | Acesso Restrito</title>
+    <style>
+        :root { --navy: #0A192F; --gold: #D4AF37; --bg: #F5F7FA; --text: #333; --border: #E2E8F0; --hover-blue: #1a365d; }
+        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background-color: var(--bg); color: var(--text); }
+        
+        /* TELA DE LOGIN */
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--navy); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; color: white; text-align: center; padding: 20px; box-sizing: border-box; }
+        .login-box { background: white; color: var(--navy); padding: 3rem; border-radius: 8px; border-top: 6px solid var(--gold); box-shadow: 0 10px 25px rgba(0,0,0,0.5); max-width: 400px; width: 100%; box-sizing: border-box; }
+        .login-box h2 { margin-top: 0; font-family: Georgia, serif; }
+        .btn-login-google { background: var(--navy); color: white; border: none; padding: 1rem; width: 100%; font-size: 1.1rem; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 1.5rem; transition: background 0.2s; }
+        .btn-login-google:hover { background: var(--hover-blue); }
+        
+        #app-content { display: none; }
+        
+        /* CABEÇALHO E TOP BAR */
+        header { background-color: var(--navy); color: white; padding: 1.5rem; text-align: center; border-bottom: 4px solid var(--gold); position: relative; }
+        h1 { margin: 0; font-family: Georgia, serif; }
+        #auth-container { position: absolute; top: 1.5rem; right: 2rem; display: flex; flex-direction: column; align-items: flex-end; gap: 5px;}
+        .btn-auth { background: transparent; color: white; border: 1px solid var(--gold); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .btn-auth:hover { background: var(--gold); color: var(--navy); }
+        .btn-admin { background: var(--gold); color: var(--navy); border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: none; }
+        .btn-admin:hover { background: #fff; }
+        .user-badge { font-size: 0.85rem; color: #cbd5e0; }
+
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .tabs { display: flex; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border); }
+        .tab { padding: 1rem 1.5rem; cursor: pointer; font-weight: bold; background: none; border: none; border-bottom: 3px solid transparent; font-size: 1rem; color: var(--navy); }
+        .tab.active { border-bottom-color: var(--gold); background: white; border-radius: 8px 8px 0 0; }
+        .view-section { display: none; background: white; padding: 2rem; border-radius: 0 8px 8px 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .view-section.active { display: block; }
+        .main-grid { display: grid; grid-template-columns: 2.5fr 1fr; gap: 2rem; }
+
+        /* CALENDÁRIO OTIMIZADO PARA MOBILE */
+        .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .cal-nav button, .cal-view-toggle button { background: white; border: 1px solid var(--border); padding: 0.5rem 1rem; cursor: pointer; color: var(--navy); font-weight: bold; border-radius: 4px;}
+        .cal-nav button:hover, .cal-view-toggle button:hover { background: var(--bg); }
+        .cal-view-toggle button.active { background: var(--navy); color: white; border-color: var(--navy); }
+        .cal-title { font-size: 1.4rem; font-weight: bold; color: var(--navy); text-transform: capitalize; }
+        
+        #cal-container { 
+            width: 100%; 
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; 
+            padding-bottom: 10px; 
+        }
+        
+        .cal-grid { 
+            display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); 
+            grid-template-columns: repeat(7, minmax(0, 1fr)); 
+            width: 100%; box-sizing: border-box; 
+            min-width: 800px; /* Impede que o calendário amasse em telas pequenas */
+        }
+        .cal-day-name { background: var(--navy); color: white; text-align: center; padding: 0.5rem 0.25rem; font-weight: bold; font-size: 0.85rem; }
+        .cal-cell { background: white; min-height: 125px; padding: 0.5rem; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; transition: background 0.2s; }
+        .cal-cell.admin-mode { cursor: crosshair; }
+        .cal-cell.admin-mode:hover { background: #fdfdfd; box-shadow: inset 0 0 10px rgba(0,0,0,0.03); }
+        .cal-cell.other-month { background: #F7FAFC; color: #A0AEC0; }
+        .cal-cell.today { background: #FFFAF0; box-shadow: inset 0 0 0 2px var(--gold); }
+        .cal-date-num { font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem; text-align: right; color: #4A5568; pointer-events: none;}
+        .cal-event-pill { background: var(--navy); color: white; font-size: 0.72rem; padding: 4px 6px; border-radius: 4px; margin-bottom: 4px; cursor: pointer; border-left: 3px solid var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .cal-week-cell { min-height: 280px; }
+        .cal-event-card-week { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--navy); padding: 8px; margin-bottom: 8px; font-size: 0.82rem; border-radius: 4px; cursor: pointer; transition: transform 0.2s; }
+        .cal-event-card-week b { color: var(--navy); display: block; margin-bottom: 2px; }
+
+        /* PAINEL DE EVENTOS E LISTAS */
+        .today-panel { background: #fff; border: 1px solid var(--border); border-top: 4px solid var(--gold); border-radius: 8px; padding: 1.5rem; }
+        .today-title { font-size: 1.2rem; font-weight: bold; color: var(--navy); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        .today-empty { color: #718096; font-style: italic; text-align: center; padding: 1rem 0; }
+        .today-event { background: var(--bg); border-left: 3px solid var(--navy); padding: 0.75rem; margin-bottom: 1rem; border-radius: 0 4px 4px 0; font-size: 0.9rem; cursor: pointer; transition: background 0.2s;}
+        .today-event strong { color: var(--navy); display: block; margin-bottom: 0.25rem; font-size: 1rem; }
+
+        .event-list-card { border-left: 4px solid var(--navy); padding: 1.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; background: #fff; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer; transition: background 0.2s;}
+        .event-list-details { flex-grow: 1; }
+        .event-list-title { font-weight: bold; font-size: 1.25rem; color: var(--navy); margin-bottom: 0.5rem; }
+        .event-list-line { margin-bottom: 0.25rem; font-size: 0.95rem; }
+        .event-list-line strong { color: #4A5568; display: inline-block; width: 80px; }
+        .event-thumb { width: 100px; height: 100px; object-fit: cover; border-radius: 4px; margin-left: 1rem; border: 1px solid var(--border); }
+
+        /* FORMULÁRIOS E MODAIS */
+        .form-group { margin-bottom: 1rem; width: 100%; box-sizing: border-box; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 0.5rem; color: var(--navy); }
+        .form-group input[type="text"], .form-group input[type="date"], .form-group input[type="email"], .form-group textarea { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .form-group input[type="file"] { border: 1px dashed var(--border); padding: 1rem; width: 100%; box-sizing: border-box; background: white; cursor: pointer; }
+        .flex-row { display: flex; gap: 1rem; }
+        
+        .btn { background: var(--navy); color: white; border: none; padding: 1rem; font-weight: bold; width: 100%; border-radius: 4px; cursor: pointer; font-size: 1rem; box-sizing: border-box; }
+        .btn-gold { background: var(--gold); color: var(--navy); }
+        .btn-whatsapp { background: #25D366; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-whatsapp:hover { background: #1EBE5D; box-shadow: 0 4px 10px rgba(37,211,102,0.35); }
+        .btn-copiar { background: #2D3748; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-copiar:hover { background: #1A202C; }
+        .btn-whatsapp-header { background: #25D366; color: white; border: 1px solid #1ebe5d; padding: 0.5rem 0.9rem; cursor: pointer; font-weight: bold; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; transition: all 0.2s; }
+        .btn-whatsapp-header:hover { background: #1EBE5D; box-shadow: 0 2px 8px rgba(37,211,102,0.4); }
+        .btn-whatsapp-sm { background: #25D366; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: background 0.2s; }
+        .btn-whatsapp-sm:hover { background: #1EBE5D; }
+        
+        .agenda-toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1A365D; color: white; padding: 12px 24px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.35); font-size: 0.95rem; font-weight: 600; z-index: 9999; opacity: 0; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); border-left: 4px solid #25D366; pointer-events: none; }
+        .agenda-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); }
+        .modal-box { background: white; margin: 5vh auto; width: 90%; max-width: 900px; border-radius: 8px; border-top: 6px solid var(--gold); padding: 2rem; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-height: 85vh; overflow-y: auto; box-sizing: border-box; }
+        .modal-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem; }
+        
+        .modal-info-title { font-size: 1.5rem; font-weight: bold; color: var(--navy); margin-bottom: 1rem; line-height: 1.3; }
+        .modal-info p { margin: 0.5rem 0; font-size: 1rem; line-height: 1.5; }
+        .modal-info strong { color: #4A5568; display: inline-block; width: 85px; }
+        .modal-img-full { width: 100%; max-height: 60vh; object-fit: contain; border: 1px solid var(--border); border-radius: 4px; background: #FAFAFA; }
+        .close { position: absolute; top: 15px; right: 20px; color: #aaa; font-size: 35px; font-weight: bold; cursor: pointer; }
+        
+        .clickable-img { cursor: zoom-in; transition: transform 0.2s ease; }
+        #lightboxModal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.92); justify-content: center; align-items: center; }
+        #lightbox-img { max-width: 95%; max-height: 90vh; border: 2px solid var(--gold); border-radius: 6px; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        .btn-voltar { background: var(--gold); color: var(--navy); border: none; padding: 10px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.2s; position: absolute; top: 20px; right: 30px; z-index: 2001; }
+        
+        .user-list-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--border); align-items: center; }
+        .btn-remove-user { background: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+
+        /* ========================================================
+           DESIGN RESPONSIVO (OTIMIZAÇÃO PARA CELULAR)
+           ======================================================== */
+        @media (max-width: 900px) { 
+            .main-grid { grid-template-columns: 1fr; } 
+        }
+
+        @media (max-width: 768px) { 
+            header { padding: 1.5rem 1rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+            #auth-container { position: relative; top: auto; right: auto; align-items: center; width: 100%; }
+            
+            .tabs { flex-direction: column; margin-bottom: 1rem; }
+            .tab { width: 100%; text-align: center; border-bottom: 1px solid var(--border); border-radius: 0; }
+            .tab.active { border-bottom: none; border-left: 4px solid var(--gold); border-radius: 0; }
+            
+            .view-section { padding: 1rem; }
+            .cal-header { flex-direction: column; gap: 1rem; text-align: center; }
+            .cal-nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; }
+            
+            .modal-box { width: 95%; margin: 2vh auto; padding: 1.5rem; }
+            .modal-layout { grid-template-columns: 1fr; gap: 1rem; }
+            
+            /* Coloca os campos e botões em coluna no mobile */
+            .flex-row { flex-direction: column; gap: 1rem; }
+            .modal-info .flex-row { display: flex; flex-direction: column; gap: 10px; margin-top: 1rem; }
+            .modal-info .btn { width: 100% !important; margin-left: 0 !important; }
+            
+            .event-list-card { flex-direction: column; }
+            .event-thumb { margin-left: 0; margin-top: 1rem; width: 100%; height: 150px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TELA DE BLOQUEIO INICIAL -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>Agenda Oficial<br><span style="font-size: 1rem; color: #718096; font-family: sans-serif;">Capitania Fluvial de Tabatinga (CFT-01)</span></h2>
+            <p style="margin-bottom: 2rem;">Acesso restrito ao Oficialato e militares autorizados.</p>
+            <button class="btn-login-google" onclick="fazerLogin()">Autenticar com Google</button>
+            <div id="login-error" style="background: #FFF5F5; border-left: 4px solid #E53E3E; color: #C53030; padding: 15px; margin-top: 1.5rem; text-align: left; font-size: 0.9rem; display: none;">
+                <strong>Acesso Negado.</strong><br>O seu e-mail <span id="error-email" style="font-weight:bold;"></span> não possui permissão.<br><br>Copie este e-mail e envie ao COMSOC para solicitar liberação.
+            </div>
+        </div>
+    </div>
+
+    <!-- SISTEMA (Oculto) -->
+    <div id="app-content">
+        <header>
+            <div>
+                <h1>Agenda Oficial | CFT-01</h1>
+                <div style="font-size: 0.9rem; color: #A0AEC0; margin-top: 0.5rem;">Capitania Fluvial de Tabatinga</div>
+            </div>
+            <div id="auth-container">
+                <span id="user-info" class="user-badge"></span>
+                <div style="display: flex; gap: 10px; margin-top: 8px;">
+                    <button id="btn-admin-panel" class="btn-admin" onclick="abrirPainelAcesso()">👥 Gerenciar Acessos</button>
+                    <button id="btn-login" class="btn-auth" onclick="fazerLogout()">Sair</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('calendario')">Calendário Interativo</button>
+                <button class="tab" onclick="switchTab('lista')">Ver em Lista</button>
+            </div>
+
+            <div id="view-calendario" class="view-section active">
+                <div class="main-grid">
+                    <div style="overflow: hidden;"> <!-- Container limite -->
+                        <div class="cal-header">
+                            <div class="cal-nav">
+                                <button onclick="navCalendar(-1)">&laquo; Ant</button>
+                                <button onclick="navToday()">Hoje</button>
+                                <button onclick="navCalendar(1)">Próx &raquo;</button>
+                            </div>
+                            <div class="cal-title" id="cal-title">Carregando...</div>
+                            <div class="cal-view-toggle">
+                                <button id="btn-view-semanal" class="active" onclick="setView('semanal')">Semanal</button>
+                                <button id="btn-view-mensal" onclick="setView('mensal')">Mensal</button>
+                                <button id="btn-share-whatsapp-cal" class="btn-whatsapp-header" onclick="abrirModalCompartilharWhatsApp()" title="Compartilhar Agenda no WhatsApp">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                    Compartilhar Agenda
+                                </button>
+                            </div>
+                        </div>
+                        <div id="dica-admin" style="display:none; font-size: 0.85rem; color: #718096; margin-bottom: 10px; font-style: italic;">
+                            💡 Modo Edição: Clique num dia vazio para adicionar compromisso. Pode deslizar a tabela para os lados.
+                        </div>
+                        <!-- CONTAINER DO SCROLL HORIZONTAL MOBILE -->
+                        <div id="cal-container"></div>
+                    </div>
+                    <div>
+                        <div class="today-panel">
+                            <div class="today-title" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>Eventos de Hoje</span>
+                                <button type="button" class="btn-whatsapp-sm" onclick="abrirModalCompartilharWhatsApp('hoje')" title="Compartilhar eventos de hoje no WhatsApp">
+                                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                    WhatsApp
+                                </button>
+                            </div>
+                            <div id="today-events-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-lista" class="view-section">
+                <div id="events-list-container"></div>
+            </div>
+        </div>
+
+        <!-- MODAL EVENTO -->
+        <div id="eventModal" class="modal">
+            <div class="modal-box">
+                <span class="close" onclick="fecharModal()">&times;</span>
+                <div class="modal-layout">
+                    <div class="modal-info" id="modal-info-content"></div>
+                    <div id="modal-image-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL FORMULÁRIO EVENTO -->
+        <div id="formModal" class="modal">
+            <div class="modal-box" style="max-width: 700px;">
+                <span class="close" onclick="fecharFormModal()">&times;</span>
+                <h2 id="form-modal-title" style="color: var(--navy); margin-top: 0;">Novo Compromisso</h2>
+                <form id="add-form" onsubmit="handleFormSubmit(event)">
+                    <div class="form-group"><label>Compromisso / Título *</label><input type="text" id="titulo" required></div>
+                    <div class="flex-row">
+                        <div class="form-group" style="flex: 1;"><label>Data *</label><input type="date" id="data" required></div>
+                        <div class="form-group" style="flex: 1;"><label>Horário</label><input type="text" id="horario"></div>
+                    </div>
+                    <div class="form-group"><label>Local</label><input type="text" id="local"></div>
+                    <div class="form-group"><label>Traje</label><input type="text" id="traje"></div>
+                    <div class="form-group"><label>Descrição Complementar</label><textarea id="descricao" rows="2"></textarea></div>
+                    <div class="form-group">
+                        <label>Anexar Convite (Imagem - Opcional)</label>
+                        <input type="file" id="imagem-file" accept="image/*" onchange="processarImagem(event)">
+                        <div id="imagem-preview-container" style="display:none; margin-top:10px; position:relative; width: fit-content;">
+                            <img id="imagem-preview" style="max-height: 120px; border: 1px solid var(--border);">
+                            <button type="button" onclick="removerImagem()" style="position:absolute; top:-10px; right:-10px; background:red; color:white; border:none; border-radius:50%; width:25px; height:25px; cursor:pointer; font-weight:bold;">X</button>
+                        </div>
+                    </div>
+                    <div class="flex-row" style="margin-top: 1.5rem;">
+                        <button type="submit" id="btn-submit-form" class="btn btn-gold" style="flex: 2;">💾 Salvar na Nuvem</button>
+                        <button type="button" class="btn" style="background: #E2E8F0; color: #333; flex: 1;" onclick="fecharFormModal()">Cancelar</button>
+                        <button type="button" id="btn-excluir" class="btn" style="background: #e53e3e; color: white; flex: 1; display: none;" onclick="excluirEvento()">🗑️ Excluir</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL GERENCIAR ACESSOS -->
+        <div id="acessoModal" class="modal">
+            <div class="modal-box" style="max-width: 500px;">
+                <span class="close" onclick="fecharModalAcesso()">&times;</span>
+                <h2 style="color: var(--navy); margin-top: 0;">Gerenciar Acessos</h2>
+                <p style="font-size: 0.9rem; color: #718096; margin-bottom: 20px;">Adicione o e-mail Google do militar para permitir que ele veja a agenda.</p>
+                
+                <form onsubmit="adicionarUsuario(event)" class="flex-row" style="margin-bottom: 20px;">
+                    <input type="email" id="novo-email" placeholder="exemplo@gmail.com" required style="flex:1; padding:10px; border:1px solid var(--border); border-radius:4px;">
+                    <button type="submit" class="btn btn-gold" style="width:auto; padding:10px 20px;">Autorizar</button>
+                </form>
+
+                <h3 style="font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 5px;">Militares Autorizados</h3>
+                <div id="lista-usuarios" style="max-height: 300px; overflow-y: auto;">
+                    <!-- Lista de emails será injetada aqui -->
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL COMPARTILHAR WHATSAPP -->
+        <div id="shareModal" class="modal">
+            <div class="modal-box" style="max-width: 620px;">
+                <span class="close" onclick="fecharModalCompartilhar()">&times;</span>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div style="background: #25D366; color: white; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 10px rgba(37,211,102,0.3);">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="white"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                    </div>
+                    <div>
+                        <h2 style="color: var(--navy); margin: 0; font-size: 1.35rem;">Compartilhar Agenda no WhatsApp</h2>
+                        <div style="font-size: 0.85rem; color: #718096;">Texto padronizado oficial com o link de acesso direto à agenda.</div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="share-select-option" style="font-size: 0.9rem;">Selecione o compromisso ou a pauta:</label>
+                    <select id="share-select-option" onchange="atualizarTextoCompartilhar()" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; font-weight: 500; font-size: 0.95rem; background: #fff;"></select>
+                </div>
+
+                <div class="form-group">
+                    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                        <label for="share-text-preview" style="font-size: 0.9rem; margin-bottom: 0;">Mensagem formatada (editável):</label>
+                        <span style="font-size: 0.75rem; color: #718096;">Padrão Oficial Marinha</span>
+                    </div>
+                    <textarea id="share-text-preview" rows="10" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 4px; font-family: inherit; font-size: 0.9rem; line-height: 1.45; background: #fdfdfd;"></textarea>
+                </div>
+
+                <div class="flex-row" style="margin-top: 1.25rem;">
+                    <button type="button" class="btn btn-whatsapp" style="flex: 2; padding: 0.85rem;" onclick="dispararEnvioWhatsAppModal()">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align:-3px; margin-right:4px;"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                        Abrir no WhatsApp
+                    </button>
+                    <button type="button" class="btn btn-copiar" style="flex: 1.5; padding: 0.85rem;" onclick="copiarTextoModal()">
+                        📋 Copiar Texto
+                    </button>
+                    <button type="button" class="btn" style="flex: 1; padding: 0.85rem; background: #E2E8F0; color: #333;" onclick="fecharModalCompartilhar()">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="agendaToast" class="agenda-toast"></div>
+
+        <div id="lightboxModal" onclick="fecharLightbox(event)">
+            <button class="btn-voltar" onclick="fecharLightbox(event)">⬅ Voltar / Fechar</button>
+            <img id="lightbox-img" src="" onclick="event.stopPropagation()">
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_Yy4Z6_GxPhEoSA2yAHHCt7Th0xnoT1Q",
+            authDomain: "agenda-cft-01.firebaseapp.com",
+            projectId: "agenda-cft-01",
+            storageBucket: "agenda-cft-01.firebasestorage.app",
+            messagingSenderId: "172645083425",
+            appId: "1:172645083425:web:5c3bcabadf32c41cb27660",
+            measurementId: "G-GMN9YMET7T"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        // ADMINISTRADORES OFICIAIS
+        const SUPER_ADMINS = [
+            "sacrasub@mail.com",
+            "sacrasub@gmail.com",
+            "cristiano.sacramento@marinha.mil.br",
+            "eduardoheld81@gmail.com", 
+            "fluvialcapitania486@gmail.com"
+        ];
+
+        let eventosAgenda = [];
+        let currentDate = new Date();
+        let currentView = 'semanal';
+        let editingId = null;
+        let currentBase64Image = ""; 
+        let isUserAdmin = false;
+
+        const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+        const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        function getIndiceSegunda(dataObj) { return (dataObj.getDay() + 6) % 7; }
+
+        function verificarSessaoComSocExterna() {
+            try {
+                let session = null;
+                const raw = localStorage.getItem('comsoc_active_session');
+                if (raw) session = JSON.parse(raw);
+
+                const email = ((session && session.user && session.user.email) || (session && session.profile && session.profile.email) || '').toLowerCase().trim();
+                if (email) {
+                    const ehAdmin = SUPER_ADMINS.map(e => e.toLowerCase()).includes(email) || (session.profile && (session.profile.role === 'admin' || session.profile.role === 'super_admin'));
+                    isUserAdmin = ehAdmin;
+                    liberarAcesso(email, ehAdmin ? "Comandante/COMSOC" : "Militar Autorizado");
+                    const adminBtn = document.getElementById('btn-admin-panel');
+                    const dicaAdmin = document.getElementById('dica-admin');
+                    if (adminBtn) adminBtn.style.display = ehAdmin ? "block" : "none";
+                    if (dicaAdmin) dicaAdmin.style.display = ehAdmin ? "block" : "none";
+                    return true;
+                }
+            } catch(e) {
+                console.warn("[Agenda-CFT] Falha ao ler sessão do ComSoc:", e);
+            }
+            return false;
+        }
+
+        window.addEventListener('message', (ev) => {
+            if (ev.data && (ev.data.type === 'COMSOC_AUTH_SESSION' || ev.data.session)) {
+                verificarSessaoComSocExterna();
+            }
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userEmail = user.email.toLowerCase();
+                isUserAdmin = SUPER_ADMINS.map(e=>e.toLowerCase()).includes(userEmail);
+
+                if (isUserAdmin) {
+                    liberarAcesso(userEmail, "Comandante/COMSOC");
+                    document.getElementById('btn-admin-panel').style.display = "block";
+                    document.getElementById('dica-admin').style.display = "block";
+                } else {
+                    const docRef = doc(db, "autorizacoes", userEmail);
+                    const docSnap = await getDoc(docRef);
+
+                    if (docSnap.exists()) {
+                        liberarAcesso(userEmail, "Militar Autorizado");
+                        document.getElementById('btn-admin-panel').style.display = "none";
+                        document.getElementById('dica-admin').style.display = "none";
+                    } else {
+                        signOut(auth);
+                        document.getElementById('error-email').innerText = userEmail;
+                        document.getElementById('login-error').style.display = 'block';
+                    }
+                }
+            } else {
+                if (verificarSessaoComSocExterna()) {
+                    return;
+                }
+                isUserAdmin = false;
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('app-content').style.display = 'none';
+                document.getElementById('login-error').style.display = 'none';
+            }
+        });
+
+        function liberarAcesso(email, cargo) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+            document.getElementById('user-info').innerText = `${cargo}: ${email}`;
+            carregarDados();
+        }
+
+        window.fazerLogin = function() { signInWithPopup(auth, provider); };
+        window.fazerLogout = function() {
+            signOut(auth);
+            if (window.parent && typeof window.parent.signOut === 'function') {
+                window.parent.signOut();
+            }
+        };
+
+        function carregarDados() {
+            onSnapshot(collection(db, "eventos"), (snapshot) => {
+                eventosAgenda = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAll();
+                verificarEventoUrl();
+            });
+        }
+        function renderAll() { renderCalendar(); renderTodayEvents(); renderListView(); }
+
+        window.handleFormSubmit = async function(e) {
+            e.preventDefault(); if(!isUserAdmin) return;
+            const eventoForm = { titulo: document.getElementById('titulo').value, data: document.getElementById('data').value, horario: document.getElementById('horario').value, local: document.getElementById('local').value, traje: document.getElementById('traje').value, descricao: document.getElementById('descricao').value, imagem: currentBase64Image };
+            const btnSalvar = document.getElementById('btn-submit-form'); btnSalvar.innerText = "Salvando..."; btnSalvar.disabled = true;
+            if (editingId) await updateDoc(doc(db, "eventos", editingId), eventoForm);
+            else await addDoc(collection(db, "eventos"), eventoForm);
+            fecharFormModal(); btnSalvar.innerText = "💾 Salvar na Nuvem"; btnSalvar.disabled = false;
+        };
+
+        window.excluirEvento = async function() {
+            if(!isUserAdmin || !editingId) return;
+            if(confirm("Tem certeza que deseja excluir este compromisso?")) {
+                await deleteDoc(doc(db, "eventos", editingId)); fecharFormModal();
+            }
+        };
+
+        window.abrirPainelAcesso = function() {
+            if(!isUserAdmin) return;
+            document.getElementById('acessoModal').style.display = "block";
+            onSnapshot(collection(db, "autorizacoes"), (snapshot) => {
+                const lista = document.getElementById('lista-usuarios');
+                lista.innerHTML = '';
+                snapshot.forEach(doc => {
+                    lista.innerHTML += `<div class="user-list-item"><span>${doc.id}</span><button class="btn-remove-user" onclick="removerUsuario('${doc.id}')">Remover</button></div>`;
+                });
+                if(snapshot.empty) lista.innerHTML = '<div style="padding:10px; color:#718096; font-style:italic;">Nenhum usuário extra autorizado ainda.</div>';
+            });
+        };
+
+        window.fecharModalAcesso = function() { document.getElementById('acessoModal').style.display = "none"; };
+        window.adicionarUsuario = async function(e) { e.preventDefault(); const email = document.getElementById('novo-email').value.toLowerCase(); await setDoc(doc(db, "autorizacoes", email), { dataAutorizacao: new Date().toISOString() }); document.getElementById('novo-email').value = ''; };
+        window.removerUsuario = async function(email) { if(confirm(`Revogar acesso de ${email}?`)) { await deleteDoc(doc(db, "autorizacoes", email)); } };
+
+        window.processarImagem = function(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(event) { const img = new Image(); img.onload = function() { const canvas = document.createElement('canvas'); const MAX_WIDTH = 800; let width = img.width; let height = img.height; if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); currentBase64Image = canvas.toDataURL('image/jpeg', 0.7); document.getElementById('imagem-preview').src = currentBase64Image; document.getElementById('imagem-preview-container').style.display = 'block'; }; img.src = event.target.result; }; reader.readAsDataURL(file); };
+        window.removerImagem = function() { currentBase64Image = ""; document.getElementById('imagem-file').value = ""; document.getElementById('imagem-preview-container').style.display = 'none'; };
+        window.switchTab = function(tabId) { document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active')); document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('active'); document.getElementById(`view-${tabId}`).classList.add('active'); };
+        window.abrirLightbox = function(src) { document.getElementById('lightbox-img').src = src; document.getElementById('lightboxModal').style.display = 'flex'; };
+        window.fecharLightbox = function(e) { if (e === undefined || e.target.id === 'lightboxModal' || e.target.classList.contains('btn-voltar')) { document.getElementById('lightboxModal').style.display = 'none'; } };
+        window.fecharModal = function() { document.getElementById('eventModal').style.display = "none"; };
+        window.fecharFormModal = function() { document.getElementById('formModal').style.display = "none"; document.getElementById('add-form').reset(); removerImagem(); editingId = null; };
+
+        const mesesNomesExtenso = [
+            'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+            'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+        ];
+        const diasSemanaNomesExtenso = [
+            'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
+            'quinta-feira', 'sexta-feira', 'sábado'
+        ];
+
+        function formatarDataPorExtensoComDiaSemana(dataStr) {
+            if (!dataStr) return '';
+            try {
+                const parts = dataStr.split('-');
+                if (parts.length === 3) {
+                    const ano = parseInt(parts[0], 10);
+                    const mesIdx = parseInt(parts[1], 10) - 1;
+                    const dia = parseInt(parts[2], 10);
+                    const d = new Date(ano, mesIdx, dia, 12, 0, 0);
+                    const diaSemana = diasSemanaNomesExtenso[d.getDay()];
+                    const nomeMes = mesesNomesExtenso[mesIdx];
+                    return `${dia} de ${nomeMes} de ${ano} (${diaSemana})`;
+                }
+            } catch(e) {}
+            return dataStr;
+        }
+
+        function formatarHorarioWhatsApp(h) {
+            if (!h) return '';
+            return h.trim().replace(/(\d{2}):(\d{2})/g, '$1h$2');
+        }
+
+        function getAgendaDirectUrl(eventoId = null) {
+            let base = "https://comsoc.vercel.app/agenda-cft";
+            try {
+                if (window.location && window.location.origin && window.location.origin.startsWith('http')) {
+                    base = window.location.origin + window.location.pathname;
+                }
+            } catch(e) {}
+            if (eventoId) {
+                return `${base}?evento=${encodeURIComponent(eventoId)}`;
+            }
+            return base;
+        }
+
+        window.gerarTextoEventoWhatsApp = function(ev, incluirLink = true) {
+            if (!ev) return '';
+            const linhas = [];
+            linhas.push(`Evento: ${ev.titulo || 'Compromisso'}`);
+            if (ev.data) {
+                linhas.push(`Data: ${formatarDataPorExtensoComDiaSemana(ev.data)}`);
+            }
+            if (ev.horario && ev.horario.trim()) {
+                linhas.push(`Horário: ${formatarHorarioWhatsApp(ev.horario)}`);
+            }
+            if (ev.local && ev.local.trim()) {
+                linhas.push(`Local: ${ev.local.trim()}`);
+            }
+            if (ev.traje && ev.traje.trim()) {
+                linhas.push(`Traje: ${ev.traje.trim()}`);
+            }
+            if (ev.descricao && ev.descricao.trim()) {
+                linhas.push(`Descrição: ${ev.descricao.trim()}`);
+            }
+            if (incluirLink) {
+                const link = getAgendaDirectUrl(ev.id);
+                linhas.push('');
+                linhas.push(`🔗 Acesso à Agenda Oficial CFT:`);
+                linhas.push(link);
+            }
+            return linhas.join('\n');
+        };
+
+        window.gerarTextoMultiplosEventosWhatsApp = function(dataStr, eventos, incluirLink = true) {
+            if (!eventos || eventos.length === 0) return '';
+            if (eventos.length === 1) return window.gerarTextoEventoWhatsApp(eventos[0], incluirLink);
+            
+            const dataFormatada = formatarDataPorExtensoComDiaSemana(dataStr);
+            const linhas = [];
+            linhas.push(`AGENDA OFICIAL CFT - PROGRAMAÇÃO`);
+            linhas.push(`Data: ${dataFormatada}`);
+            linhas.push('');
+            
+            eventos.forEach((ev, idx) => {
+                linhas.push(`━━━━━━━━━━━━━━━━━━━━`);
+                linhas.push(`Evento ${idx + 1}: ${ev.titulo}`);
+                if (ev.horario && ev.horario.trim()) {
+                    linhas.push(`Horário: ${formatarHorarioWhatsApp(ev.horario)}`);
+                }
+                if (ev.local && ev.local.trim()) {
+                    linhas.push(`Local: ${ev.local.trim()}`);
+                }
+                if (ev.traje && ev.traje.trim()) {
+                    linhas.push(`Traje: ${ev.traje.trim()}`);
+                }
+                if (ev.descricao && ev.descricao.trim()) {
+                    linhas.push(`Descrição: ${ev.descricao.trim()}`);
+                }
+            });
+            
+            if (incluirLink) {
+                const link = getAgendaDirectUrl();
+                linhas.push('');
+                linhas.push(`🔗 Acesso à Agenda Oficial CFT:`);
+                linhas.push(link);
+            }
+            return linhas.join('\n');
+        };
+
+        window.enviarTextoWhatsApp = function(texto) {
+            if (!texto) return;
+            const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+            window.open(url, '_blank');
+        };
+
+        window.copiarTextoWhatsApp = async function(texto) {
+            if (!texto) return;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(texto);
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = texto;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
+                window.mostrarToastAgenda("📋 Texto copiado para a área de transferência!");
+            } catch(e) {
+                console.error("Falha ao copiar:", e);
+                window.mostrarToastAgenda("Erro ao copiar texto.");
+            }
+        };
+
+        window.abrirWhatsAppDireto = function(id) {
+            const ev = eventosAgenda.find(e => e.id == id);
+            if (!ev) return;
+            const texto = window.gerarTextoEventoWhatsApp(ev, true);
+            window.enviarTextoWhatsApp(texto);
+        };
+
+        window.copiarTextoEventoDireto = function(id) {
+            const ev = eventosAgenda.find(e => e.id == id);
+            if (!ev) return;
+            const texto = window.gerarTextoEventoWhatsApp(ev, true);
+            window.copiarTextoWhatsApp(texto);
+        };
+
+        window.mostrarToastAgenda = function(msg) {
+            let toast = document.getElementById('agendaToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'agendaToast';
+                toast.className = 'agenda-toast';
+                document.body.appendChild(toast);
+            }
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        };
+
+        window.verificarEventoUrl = function() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const eventoId = params.get('evento');
+                if (eventoId && !window._eventoUrlCarregado && eventosAgenda.length > 0) {
+                    const ev = eventosAgenda.find(e => e.id === eventoId);
+                    if (ev) {
+                        window._eventoUrlCarregado = true;
+                        setTimeout(() => window.verEvento(ev.id), 300);
+                    }
+                }
+            } catch(e) {
+                console.warn("[Agenda] Erro ao carregar evento da URL:", e);
+            }
+        };
+
+        window.abrirModalCompartilharWhatsApp = function(alvo = null) {
+            const modal = document.getElementById('shareModal');
+            const select = document.getElementById('share-select-option');
+            const textarea = document.getElementById('share-text-preview');
+            if (!modal || !select || !textarea) return;
+
+            select.innerHTML = '';
+            
+            const hoje = new Date();
+            const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+            const eventosHoje = getEventosData(hojeStr);
+
+            // Opção 1: Eventos de Hoje
+            if (eventosHoje.length > 0) {
+                const optHoje = document.createElement('option');
+                optHoje.value = `data:${hojeStr}`;
+                optHoje.textContent = `📅 Eventos de Hoje (${eventosHoje.length} compromisso${eventosHoje.length > 1 ? 's' : ''})`;
+                select.appendChild(optHoje);
+            }
+
+            // Opções individuais ordenadas por data
+            const ordenados = [...eventosAgenda].sort((a, b) => new Date(a.data) - new Date(b.data));
+            
+            if (ordenados.length > 0) {
+                const grp = document.createElement('optgroup');
+                grp.label = "Compromissos Cadastrados";
+                ordenados.forEach(ev => {
+                    const opt = document.createElement('option');
+                    opt.value = `evento:${ev.id}`;
+                    const parts = ev.data.split('-');
+                    const dFormat = `${parts[2]}/${parts[1]}`;
+                    const hFormat = ev.horario ? ` (${ev.horario})` : '';
+                    opt.textContent = `${dFormat}${hFormat} - ${ev.titulo}`;
+                    grp.appendChild(opt);
+                });
+                select.appendChild(grp);
+            } else if (eventosHoje.length === 0) {
+                const optVazio = document.createElement('option');
+                optVazio.value = "vazio";
+                optVazio.textContent = "Nenhum compromisso cadastrado na agenda";
+                select.appendChild(optVazio);
+            }
+
+            if (alvo && typeof alvo === 'string' && alvo !== 'hoje') {
+                const optExistente = Array.from(select.options).find(o => o.value === `evento:${alvo}`);
+                if (optExistente) select.value = `evento:${alvo}`;
+            } else if (alvo === 'hoje' && eventosHoje.length > 0) {
+                select.value = `data:${hojeStr}`;
+            }
+
+            window.atualizarTextoCompartilhar();
+            modal.style.display = "block";
+        };
+
+        window.fecharModalCompartilhar = function() {
+            const modal = document.getElementById('shareModal');
+            if (modal) modal.style.display = "none";
+        };
+
+        window.atualizarTextoCompartilhar = function() {
+            const select = document.getElementById('share-select-option');
+            const textarea = document.getElementById('share-text-preview');
+            if (!select || !textarea) return;
+
+            const val = select.value;
+            if (!val || val === 'vazio') {
+                textarea.value = "Nenhum compromisso selecionado para compartilhar.";
+                return;
+            }
+
+            if (val.startsWith('data:')) {
+                const dataStr = val.replace('data:', '');
+                const evs = getEventosData(dataStr);
+                textarea.value = window.gerarTextoMultiplosEventosWhatsApp(dataStr, evs, true);
+            } else if (val.startsWith('evento:')) {
+                const id = val.replace('evento:', '');
+                const ev = eventosAgenda.find(e => e.id == id);
+                if (ev) {
+                    textarea.value = window.gerarTextoEventoWhatsApp(ev, true);
+                }
+            }
+        };
+
+        window.dispararEnvioWhatsAppModal = function() {
+            const textarea = document.getElementById('share-text-preview');
+            if (!textarea || !textarea.value.trim()) return;
+            window.enviarTextoWhatsApp(textarea.value.trim());
+        };
+
+        window.copiarTextoModal = function() {
+            const textarea = document.getElementById('share-text-preview');
+            if (!textarea || !textarea.value.trim()) return;
+            window.copiarTextoWhatsApp(textarea.value.trim());
+        };
+
+        window.verEvento = function(id) {
+            const ev = eventosAgenda.find(e => e.id == id); if (!ev) return;
+            const infoContent = document.getElementById('modal-info-content'); const imageContent = document.getElementById('modal-image-content'); const modalLayout = document.querySelector('.modal-layout');
+            const parts = ev.data.split('-'); const dataFormatada = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            let botoesHtml = "";
+            botoesHtml += `<button class="btn btn-whatsapp" style="width: auto; padding: 0.75rem 1.25rem;" onclick="abrirWhatsAppDireto('${ev.id}')">📲 WhatsApp</button>`;
+            botoesHtml += `<button class="btn btn-copiar" style="width: auto; padding: 0.75rem 1.25rem;" onclick="copiarTextoEventoDireto('${ev.id}')">📋 Copiar</button>`;
+            if(isUserAdmin) botoesHtml += `<button class="btn btn-gold" style="width: auto; padding: 0.75rem 1.25rem;" onclick="iniciarEdicao('${ev.id}')">✏️ Editar Evento</button>`;
+            if(ev.imagem) botoesHtml += `<button class="btn" style="width: auto; padding: 0.75rem 1.25rem;" onclick="abrirLightbox('${ev.imagem}')">🖼️ Abrir Convite</button>`;
+            infoContent.innerHTML = `<div class="modal-info-title">${ev.titulo}</div><p><strong>Data:</strong> ${dataFormatada}</p>${ev.horario ? `<p><strong>Horário:</strong> ${ev.horario}</p>` : ''}${ev.local ? `<p><strong>Local:</strong> ${ev.local}</p>` : ''}${ev.traje ? `<p><strong>Traje:</strong> ${ev.traje}</p>` : ''}${ev.descricao ? `<p><strong>Descrição:</strong> ${ev.descricao}</p>` : ''}<div class="flex-row" style="flex-wrap: wrap; gap: 8px; margin-top: 1.25rem;">${botoesHtml}</div>`;
+            if (ev.imagem) { modalLayout.style.gridTemplateColumns = "1fr 1fr"; imageContent.innerHTML = `<img src="${ev.imagem}" class="modal-img-full clickable-img" onclick="abrirLightbox(this.src)">`; } else { modalLayout.style.gridTemplateColumns = "1fr"; imageContent.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; min-height:150px; background:#f8fafc; font-style:italic;">Nenhum convite anexado.</div>`; }
+            document.getElementById('eventModal').style.display = "block";
+        };
+
+        window.abrirFormularioAdd = function(dataStr) { if(!isUserAdmin) return; editingId = null; document.getElementById('add-form').reset(); removerImagem(); document.getElementById('form-modal-title').innerText = "Novo Compromisso"; document.getElementById('btn-excluir').style.display = 'none'; document.getElementById('data').value = dataStr; document.getElementById('formModal').style.display = "block"; };
+        window.iniciarEdicao = function(id) { if(!isUserAdmin) return; const ev = eventosAgenda.find(e => e.id == id); if (!ev) return; editingId = id; document.getElementById('form-modal-title').innerText = "✏️ Editando Compromisso"; document.getElementById('titulo').value = ev.titulo; document.getElementById('data').value = ev.data; document.getElementById('horario').value = ev.horario || ''; document.getElementById('local').value = ev.local || ''; document.getElementById('traje').value = ev.traje || ''; document.getElementById('descricao').value = ev.descricao || ''; removerImagem(); if (ev.imagem) { currentBase64Image = ev.imagem; document.getElementById('imagem-preview').src = ev.imagem; document.getElementById('imagem-preview-container').style.display = 'block'; } document.getElementById('btn-excluir').style.display = 'block'; fecharModal(); document.getElementById('formModal').style.display = "block"; };
+        window.setView = function(view) { currentView = view; document.querySelectorAll('.cal-view-toggle button').forEach(b => b.classList.remove('active')); document.getElementById(`btn-view-${view}`).classList.add('active'); renderCalendar(); };
+        window.navToday = function() { currentDate = new Date(); renderCalendar(); };
+        window.navCalendar = function(dir) { if (currentView === 'mensal') currentDate.setMonth(currentDate.getMonth() + dir); else if (currentView === 'semanal') currentDate.setDate(currentDate.getDate() + (dir * 7)); renderCalendar(); };
+        function getEventosData(dataStr) { return eventosAgenda.filter(e => e.data === dataStr); }
+
+        function renderTodayEvents() { const container = document.getElementById('today-events-container'); const hoje = new Date(); const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`; const eventosHoje = getEventosData(hojeStr); if (eventosHoje.length === 0) container.innerHTML = `<div class="today-empty">Nenhum evento agendado para hoje.</div>`; else { let html = ''; eventosHoje.forEach(ev => { html += `<div class="today-event" onclick="verEvento('${ev.id}')"><strong>${ev.titulo}</strong>${ev.horario ? `🕛 ${ev.horario}<br>` : ''}${ev.local ? `📍 ${ev.local}` : ''}</div>`; }); container.innerHTML = html; } }
+        function renderListView() { const container = document.getElementById('events-list-container'); let sorted = [...eventosAgenda].sort((a, b) => new Date(a.data) - new Date(b.data)); container.innerHTML = ''; if (sorted.length === 0) { container.innerHTML = '<div style="text-align:center; padding: 2rem;">Nenhum evento agendado.</div>'; return; } sorted.forEach(ev => { const parts = ev.data.split('-'); const dataFormatada = `${parts[2]}/${parts[1]}/${parts[0]}`; let imgHtml = ev.imagem ? `<img src="${ev.imagem}" class="event-thumb">` : ''; container.innerHTML += `<div class="event-list-card" onclick="verEvento('${ev.id}')"><div class="event-list-details"><div class="event-list-title">${ev.titulo}</div><div class="event-list-line"><strong>Data:</strong> ${dataFormatada}</div>${ev.horario ? `<div class="event-list-line"><strong>Horário:</strong> ${ev.horario}</div>` : ''}${ev.local ? `<div class="event-list-line"><strong>Local:</strong> ${ev.local}</div>` : ''}</div>${imgHtml}</div>`; }); }
+        function renderCalendar() { const container = document.getElementById('cal-container'); const title = document.getElementById('cal-title'); container.innerHTML = ''; const year = currentDate.getFullYear(); const month = currentDate.getMonth(); if (currentView === 'mensal') { title.innerText = `${meses[month]} ${year}`; renderMes(year, month, container); } else { renderSemana(container, title); } }
+        function renderMes(year, month, container) { let html = `<div class="cal-grid">`; diasSemana.forEach(d => html += `<div class="cal-day-name">${d}</div>`); const firstDayOfMonth = new Date(year, month, 1); const daysInMonth = new Date(year, month + 1, 0).getDate(); const startDayIndex = getIndiceSegunda(firstDayOfMonth); const hojeStr = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`; let cellCount = 0; for (let i = 0; i < startDayIndex; i++) { html += `<div class="cal-cell other-month"></div>`; cellCount++; } for (let dia = 1; dia <= daysInMonth; dia++) { const dataStr = `${year}-${String(month+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`; const isToday = dataStr === hojeStr ? 'today' : ''; const classeAdmin = isUserAdmin ? 'admin-mode' : ''; const eventosDia = getEventosData(dataStr); const onClickDia = isUserAdmin ? `onclick="abrirFormularioAdd('${dataStr}')"` : ''; html += `<div class="cal-cell ${isToday} ${classeAdmin}" ${onClickDia}><div class="cal-date-num">${dia}</div>`; eventosDia.forEach(e => { html += `<div class="cal-event-pill" onclick="event.stopPropagation(); verEvento('${e.id}')">🕒 ${e.horario ? e.horario.split(' ')[0] : ''} - ${e.titulo}</div>`; }); html += `</div>`; cellCount++; } while (cellCount % 7 !== 0) { html += `<div class="cal-cell other-month"></div>`; cellCount++; } html += `</div>`; container.innerHTML = html; }
+        function renderSemana(container, titleElement) { let segunda = new Date(currentDate); segunda.setDate(currentDate.getDate() - getIndiceSegunda(currentDate)); let domingo = new Date(segunda); domingo.setDate(segunda.getDate() + 6); titleElement.innerText = `${segunda.getDate()} de ${meses[segunda.getMonth()]} - ${domingo.getDate()} de ${meses[domingo.getMonth()]} ${domingo.getFullYear()}`; let html = `<div class="cal-grid">`; const hojeStr = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`; for (let i = 0; i < 7; i++) { let d = new Date(segunda); d.setDate(d.getDate() + i); html += `<div class="cal-day-name">${diasSemana[i]}<br><span style="font-size:0.75rem; font-weight:normal;">${d.getDate()}/${d.getMonth()+1}</span></div>`; } for (let i = 0; i < 7; i++) { let d = new Date(segunda); d.setDate(d.getDate() + i); const dataStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const isToday = dataStr === hojeStr ? 'today' : ''; const classeAdmin = isUserAdmin ? 'admin-mode' : ''; const eventosDia = getEventosData(dataStr); const onClickDia = isUserAdmin ? `onclick="abrirFormularioAdd('${dataStr}')"` : ''; html += `<div class="cal-cell cal-week-cell ${isToday} ${classeAdmin}" ${onClickDia}>`; eventosDia.forEach(e => { html += `<div class="cal-event-card-week" onclick="event.stopPropagation(); verEvento('${e.id}')">${e.horario ? `<b>${e.horario}</b>` : ''}${e.titulo}</div>`; }); html += `</div>`; } html += `</div>`; container.innerHTML = html; }
+    </script>
+</body>
+</html>
